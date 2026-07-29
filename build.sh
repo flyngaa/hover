@@ -13,6 +13,7 @@ SOURCES=(
     Sources/SettingsStore.swift
     Sources/BrandColors.swift
     Sources/HideWindowTitle.swift
+    Sources/MenuBarMoth.swift
     Sources/HotKeys.swift
     Sources/WAVFile.swift
     Sources/Chunker.swift
@@ -55,6 +56,8 @@ mv "$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 [ -f AppIcon.icns ] && cp AppIcon.icns "$APP_BUNDLE/Contents/Resources/"
 [ -f Logo.svg ] && cp Logo.svg "$APP_BUNDLE/Contents/Resources/Logo.svg"
 [ -f Logo.png ] && cp Logo.png "$APP_BUNDLE/Contents/Resources/Logo.png"
+[ -f Moth.svg ] && cp Moth.svg "$APP_BUNDLE/Contents/Resources/Moth.svg"
+[ -f Obsidian.svg ] && cp Obsidian.svg "$APP_BUNDLE/Contents/Resources/Obsidian.svg"
 cp Scripts/diarize.py "$APP_BUNDLE/Contents/Resources/diarize.py"
 
 cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'

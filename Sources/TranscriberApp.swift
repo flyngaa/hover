@@ -4,6 +4,7 @@ import SwiftUI
 /// (Agent/headless runs go through ``HoverCLI`` instead.)
 struct TranscriberApp: App {
     @State private var engine = TranscriberEngine()
+    @State private var menuBarMoth = MenuBarMoth()
 
     var body: some Scene {
         WindowGroup {
@@ -13,9 +14,18 @@ struct TranscriberApp: App {
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
                     setupHotKeys()
+                    menuBarMoth.show(onClick: showWindow)
+                    menuBarMoth.follow(engine)
                 }
         }
         .defaultSize(width: 860, height: 560)
+    }
+
+    /// Clicking the moth brings Hover back to the front — handy once the window
+    /// is buried behind whatever you're actually recording.
+    private func showWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first { $0.canBecomeMain }?.makeKeyAndOrderFront(nil)
     }
 
     private func setupHotKeys() {

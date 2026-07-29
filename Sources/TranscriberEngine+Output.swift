@@ -52,24 +52,13 @@ extension TranscriberEngine {
 
     // MARK: - The current folder
 
-    /// The single folder transcripts are saved to. Setting it only repoints the
-    /// app; moving existing files is a separate, explicit step. Prefer
-    /// ``requestOutputChange(to:)`` from the UI so the user is offered the move.
-    var outputDirectory: URL {
-        get {
-            if let path = settings.outputDirectoryPath {
-                let url = URL(fileURLWithPath: path, isDirectory: true)
-                if FileManager.default.fileExists(atPath: url.path) {
-                    return url
-                }
-            }
-            return Self.defaultOutputDirectory
-        }
-        set {
-            settings.outputDirectoryPath = newValue.path
-            try? FileManager.default.createDirectory(at: newValue, withIntermediateDirectories: true)
-            loadSavedTranscripts()
-        }
+    /// The folder from last time, used at launch to seed ``outputDirectory``.
+    /// Falls back to the standard folder if the saved one has gone (an unmounted
+    /// disk, a vault the user deleted), so transcripts never aim at nowhere.
+    static func savedOutputDirectory(from settings: SettingsStore) -> URL {
+        guard let path = settings.outputDirectoryPath else { return defaultOutputDirectory }
+        let url = URL(fileURLWithPath: path, isDirectory: true)
+        return FileManager.default.fileExists(atPath: url.path) ? url : defaultOutputDirectory
     }
 
     var outputDirectoryLabel: String { Self.shortPath(outputDirectory) }
@@ -184,9 +173,17 @@ extension TranscriberEngine {
 
     // MARK: - Finder
 
+    /// Show `directory` in Finder. A destination the user hasn't saved into yet
+    /// won't exist on disk, so reveal its parent rather than creating a stray
+    /// folder they never asked for.
+    func reveal(_ directory: URL) {
+        let target = FileManager.default.fileExists(atPath: directory.path)
+            ? directory
+            : directory.deletingLastPathComponent()
+        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: target.path)
+    }
+
     func revealOutputDirectory() {
-        let directory = outputDirectory
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: directory.path)
+        reveal(outputDirectory)
     }
 }

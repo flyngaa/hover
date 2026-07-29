@@ -113,6 +113,29 @@ import Foundation
         #expect(engine.outputDirectory.path == elsewhere.path)
     }
 
+    /// The folder has to be observable, or the toolbar and the menu's tick go on
+    /// naming the old one after a switch. This regressed once already: the folder
+    /// was computed from the settings store, which the engine deliberately hides
+    /// from observation, so nothing SwiftUI could see ever changed.
+    @Test func switchingFolderTellsObservers() {
+        let engine = makeEngine(outputDirectoryPath: current.path)
+
+        let flag = ChangeFlag()
+        withObservationTracking {
+            _ = engine.outputDirectory
+        } onChange: {
+            flag.sawChange = true
+        }
+
+        engine.requestOutputChange(to: destination(elsewhere))
+        #expect(flag.sawChange)
+    }
+
+    /// `onChange` is a `@Sendable` closure, so it can't set a local variable.
+    private final class ChangeFlag: @unchecked Sendable {
+        var sawChange = false
+    }
+
     @Test func switchingToTheSameFolderDoesNothing() {
         let store = SpyTranscriptStore(transcripts: [makeTranscript("a")])
         let engine = makeEngine(store: store, outputDirectoryPath: current.path)

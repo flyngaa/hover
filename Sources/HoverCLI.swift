@@ -43,6 +43,12 @@ enum HoverCLI {
         private func execute() async {
             applyOverrides()
 
+            // The only visible sign of a headless run: without it there's nothing
+            // on screen to say the Mac is listening. It lives as long as the run.
+            let menuBarMoth = MenuBarMoth()
+            menuBarMoth.show()
+            menuBarMoth.follow(engine)
+
             printStatus("Recording \(durationLabel)…")
             await engine.startRecording()
             guard engine.isRecording else {

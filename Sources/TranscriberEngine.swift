@@ -52,6 +52,21 @@ final class TranscriberEngine: NSObject {
         didSet { settings.diarizeSpeakers = diarizeSpeakers }
     }
 
+    /// The single folder transcripts are saved to. Setting it only repoints the
+    /// app; moving existing files is a separate, explicit step. Prefer
+    /// ``requestOutputChange(to:)`` from the UI so the user is offered the move.
+    ///
+    /// Stored here rather than read from ``settings`` on demand: the store is
+    /// `@ObservationIgnored`, so a computed property over it changed without
+    /// SwiftUI noticing and the toolbar went on naming the previous folder.
+    var outputDirectory: URL = TranscriberEngine.defaultOutputDirectory {
+        didSet {
+            settings.outputDirectoryPath = outputDirectory.path
+            try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+            loadSavedTranscripts()
+        }
+    }
+
     /// Set when changing the output folder would leave existing transcripts
     /// behind, so the UI can offer to bring them along. See ``PendingOutputChange``.
     var pendingOutputChange: PendingOutputChange?
@@ -158,6 +173,7 @@ final class TranscriberEngine: NSObject {
         // observers, so this reads without immediately writing back.
         inputSource = settings.inputSource
         diarizeSpeakers = settings.diarizeSpeakers
+        outputDirectory = Self.savedOutputDirectory(from: settings)
 
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         loadSavedTranscripts()

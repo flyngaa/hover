@@ -60,6 +60,10 @@ _Avoid_: select (SwiftUI's `List` selection is the underlying mechanism, but "ma
 The thing that persists user preferences (input source, speaker tagging, output folder). A seam: production uses `UserDefaults`, tests use an in-memory store.
 _Avoid_: config, preferences manager, defaults.
 
+**Menu Bar Moth**:
+The moth Hover shows in the macOS menu bar for as long as it's running — white on the dark menu bar when idle, red while a recording is in progress. Clicking it brings the window back to the front. It needs roughly 40 points of free menu bar space; if there is none, macOS hides it rather than shrinking it.
+_Avoid_: tray icon (that's Windows), status icon, indicator.
+
 **Agent Mode** (headless / CLI):
 Running Hover from the command line (e.g. driven by Claude Code) instead of the GUI: it starts recording immediately, stops on a duration or Ctrl-C, and prints the transcript to stdout. `--output` can point the run at a folder or a Vault. No window, no dock icon.
 _Avoid_: server mode, daemon, autotest (autotest is one legacy flag, not the concept).
