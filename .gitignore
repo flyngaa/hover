@@ -1,0 +1,15 @@
+# Swift Package Manager build products (used by the test target)
+.build/
+
+# Built app bundle / binary from build.sh
+Hover.app/
+Hover
+
+# Compiled binary left behind by `swift build`
+/transcriber
+
+# Recordings produced by running the app
+transcript_*.txt
+
+# macOS finder metadata
+.DS_Store
