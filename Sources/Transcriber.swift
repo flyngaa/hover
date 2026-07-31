@@ -14,6 +14,15 @@ protocol Transcriber {
     /// - Throws: ``TranscriptionError`` when the transcription genuinely fails
     ///   (e.g. the whisper process couldn't run) — distinct from "no words".
     func transcribe(samples: [Float]) throws -> String
+
+    /// `nil` when transcription can actually run; otherwise a sentence the user
+    /// can act on, checked before a recording starts so nobody talks for ten
+    /// minutes into a tool that was never going to work.
+    ///
+    /// Asking the transcriber keeps knowledge of external tools and models on the
+    /// one side of this seam that installs them — the engine used to keep its own
+    /// copy of the paths and check those instead, which could disagree.
+    var unavailableReason: String? { get }
 }
 
 /// A genuine failure of the transcription process — not the same as "no words found".
@@ -35,45 +44,54 @@ enum TranscriptionError: Error, LocalizedError {
 
 /// ``Transcriber`` backed by the whisper.cpp command-line tool.
 ///
-/// Owns everything between "here are some samples" and "here is the text":
-/// WAV-writing, spawning `whisper-cli`, cleaning its output, and dropping
-/// silence / hallucinated fragments. All of its external tool locations and
-/// tuning are injected, so a test can point it at a fake binary.
+/// Owns everything between "here are some samples" and "here is the text", and
+/// everything about whisper itself: where the binary and model live, whether they
+/// are installed, WAV-writing, spawning `whisper-cli`, cleaning its output, and
+/// dropping silence / hallucinated fragments. Nothing outside this file needs to
+/// know whisper exists.
 struct WhisperCLITranscriber: Transcriber {
 
-    /// Absolute path to the `whisper-cli` executable.
-    let whisperBinary: String
-    /// Absolute path to the GGML model file.
-    let modelPath: String
-    /// Sample rate the samples were captured at (whisper expects 16 kHz).
-    let sampleRate: Int
-    /// Worker threads passed to whisper-cli.
-    let threadCount: Int
-    /// Below this RMS the whole chunk is treated as silence and skipped.
-    let silenceRMSThreshold: Float
+    /// Absolute path to the `whisper-cli` executable (`brew install whisper-cpp`).
+    private static let binary = "/opt/homebrew/bin/whisper-cli"
+
+    /// GGML model filename, inside the app's models directory.
+    private static let modelFileName = "ggml-large-v3-turbo-q5_0.bin"
+
+    private static var modelPath: String {
+        TranscriberEngine.modelsDirectory.appendingPathComponent(modelFileName).path
+    }
+
+    /// Leave a couple of cores for the live audio capture, which must not stutter.
+    private static var threadCount: Int {
+        max(4, ProcessInfo.processInfo.activeProcessorCount - 2)
+    }
+
+    /// Whisper expects 16 kHz mono audio.
+    private let sampleRate = TranscriberEngine.Config.sampleRate
+
+    /// Below half this RMS the whole chunk is treated as silence and skipped.
+    private let silenceRMSThreshold = TranscriberEngine.Config.silenceRMSThreshold
+
     /// Called with a short human-readable line for logging. Defaults to no-op.
     let log: (String) -> Void
 
-    init(
-        whisperBinary: String = TranscriberEngine.Config.whisperBinary,
-        modelPath: String = TranscriberEngine.modelsDirectory
-            .appendingPathComponent(TranscriberEngine.Config.modelFileName).path,
-        sampleRate: Int = TranscriberEngine.Config.sampleRate,
-        threadCount: Int = max(4, ProcessInfo.processInfo.activeProcessorCount - 2),
-        silenceRMSThreshold: Float = TranscriberEngine.Config.silenceRMSThreshold,
-        log: @escaping (String) -> Void = { _ in }
-    ) {
-        self.whisperBinary = whisperBinary
-        self.modelPath = modelPath
-        self.sampleRate = sampleRate
-        self.threadCount = threadCount
-        self.silenceRMSThreshold = silenceRMSThreshold
+    init(log: @escaping (String) -> Void = { _ in }) {
         self.log = log
+    }
+
+    var unavailableReason: String? {
+        guard FileManager.default.isExecutableFile(atPath: Self.binary) else {
+            return "whisper-cli not found at \(Self.binary).\nInstall with: brew install whisper-cpp"
+        }
+        guard FileManager.default.fileExists(atPath: Self.modelPath) else {
+            return "Whisper model not found at:\n\(Self.modelPath)\n\nDownload may still be in progress."
+        }
+        return nil
     }
 
     func transcribe(samples: [Float]) throws -> String {
         // Don't spend a whisper run on near-silent audio.
-        guard Self.rms(of: samples) >= silenceRMSThreshold / 2 else {
+        guard AudioLevel.rms(of: samples) >= silenceRMSThreshold / 2 else {
             log("Skipped silent chunk (\(String(format: "%.1f", Double(samples.count) / Double(sampleRate)))s)")
             return ""
         }
@@ -102,13 +120,13 @@ struct WhisperCLITranscriber: Transcriber {
     /// Runs whisper-cli on a WAV file and returns its raw stdout.
     private func runWhisper(on wavURL: URL) throws -> String {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: whisperBinary)
+        process.executableURL = URL(fileURLWithPath: Self.binary)
         process.arguments = [
-            "-m", modelPath,
+            "-m", Self.modelPath,
             "-f", wavURL.path,
             "--no-timestamps",
             "--language", "auto",
-            "--threads", "\(threadCount)",
+            "--threads", "\(Self.threadCount)",
             "--no-prints",
         ]
         let stdout = Pipe()
@@ -140,16 +158,5 @@ struct WhisperCLITranscriber: Transcriber {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-    }
-
-    /// Root-mean-square amplitude — a cheap proxy for loudness/silence.
-    static func rms<S: Sequence>(of samples: S) -> Float where S.Element == Float {
-        var sum: Float = 0
-        var count = 0
-        for sample in samples {
-            sum += sample * sample
-            count += 1
-        }
-        return (sum / Float(max(count, 1))).squareRoot()
     }
 }

@@ -70,7 +70,6 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
         }
 
         var systemStarted = false
-        var micStarted = false
 
         if inputSource != .microphone {
             do {
@@ -90,11 +89,11 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
             // is genuinely running. When it fell back to mic-only, mixing is a
             // no-op — and turning on voice processing would needlessly duck the
             // Mac's output volume.
-            micStarted = startMicrophone(mixingSystemAudio: systemStarted)
+            startMicrophone(mixingSystemAudio: systemStarted)
         }
 
         await MainActor.run { self.startFlushTimer() }
-        return CaptureOutcome(systemStarted: systemStarted, micStarted: micStarted)
+        return CaptureOutcome(systemStarted: systemStarted)
     }
 
     func stop() -> [Float]? {
@@ -298,7 +297,9 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
     /// - Parameter mixingSystemAudio: whether system audio is actually running
     ///   and will be mixed into this mic stream.
     /// - Returns: whether the microphone actually started.
-    private func startMicrophone(mixingSystemAudio: Bool) -> Bool {
+    /// Failures are logged rather than reported back: there is nothing the caller
+    /// can do about them, and mic-only recording is already the fallback path.
+    private func startMicrophone(mixingSystemAudio: Bool) {
         audioEngine = AVAudioEngine()
         let inputNode = audioEngine!.inputNode
 
@@ -330,7 +331,7 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         guard let converter = AVAudioConverter(from: recordingFormat, to: pcmFormat) else {
             log("Mic converter unavailable for \(recordingFormat)")
-            return false
+            return
         }
 
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: recordingFormat) { [weak self] buffer, _ in
@@ -362,10 +363,8 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
         do {
             try audioEngine!.start()
             log("Microphone started")
-            return true
         } catch {
             log("Microphone error: \(error.localizedDescription)")
-            return false
         }
     }
 }

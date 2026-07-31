@@ -11,7 +11,6 @@ struct CaptureStatus {
 /// messaging (e.g. "recording mic only" when system audio couldn't start).
 struct CaptureOutcome {
     let systemStarted: Bool
-    let micStarted: Bool
 }
 
 /// Captures audio and emits ready-to-transcribe chunks.

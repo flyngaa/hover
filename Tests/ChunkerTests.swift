@@ -92,8 +92,14 @@ import Testing
         #expect(chunker.flushedSampleCount == 240_000)
     }
 
+}
+
+/// Loudness measurement, shared by the chunker's quiet-tail rule and the
+/// transcriber's "don't bother running whisper" check.
+@Suite struct AudioLevelTests {
+
     @Test func rms() {
-        #expect(abs(Chunker.rms(of: [0.6, -0.8]) - 0.7071) < 0.0001)
-        #expect(Chunker.rms(of: [Float]()) == 0)
+        #expect(abs(AudioLevel.rms(of: [0.6, -0.8]) - 0.7071) < 0.0001)
+        #expect(AudioLevel.rms(of: [Float]()) == 0)
     }
 }

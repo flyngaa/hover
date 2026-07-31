@@ -15,7 +15,6 @@ final class TranscriberEngine: NSObject {
     /// post-recording speaker-tagging pass until the final transcript is saved.
     var recordingTitle: String?
     var committedChunks: [String] = []
-    var currentPartial = ""
     var savedTranscripts: [SavedTranscript] = []
     var groups: [String] = []
     var lastRecordingTranscript: SavedTranscript?
@@ -26,9 +25,9 @@ final class TranscriberEngine: NSObject {
     /// A pure value type owns the fiddly rules; see ``Selection``.
     var selection = Selection()
 
-    /// Backwards-compatible accessors for the sidebar, whose `List(selection:)`
-    /// binding and existing call sites still speak in terms of the marked-id set
-    /// and anchor. Both forward to ``selection``.
+    /// How the sidebar reads and writes the selection: SwiftUI's
+    /// `List(selection:)` needs a plain `Set` binding, not a value type, so these
+    /// forward to ``selection`` rather than exposing it directly.
     var markedTranscriptIDs: Set<String> {
         get { selection.markedIDs }
         set { selection.markedIDs = newValue }
@@ -79,21 +78,13 @@ final class TranscriberEngine: NSObject {
     /// Drives the "processing" shimmer over the transcript text.
     var isProcessing: Bool { !isRecording && recordingTitle != nil }
 
-    var liveDisplayText: String {
-        if currentPartial.isEmpty { return committedText }
-        return committedText.isEmpty ? currentPartial : committedText + " " + currentPartial
-    }
-
     // MARK: - Configuration
 
     /// All tunable settings and external tool locations in one place, so there
     /// are no magic numbers or hardcoded paths scattered through the engine.
+    /// Whisper's own binary and model live with ``WhisperCLITranscriber``, behind
+    /// the transcription seam.
     enum Config {
-        /// Path to the whisper.cpp CLI (`brew install whisper-cpp`).
-        static let whisperBinary = "/opt/homebrew/bin/whisper-cli"
-        /// GGML model filename inside the models directory.
-        static let modelFileName = "ggml-large-v3-turbo-q5_0.bin"
-
         /// Whisper expects 16 kHz mono audio.
         static let sampleRate = 16000
 
@@ -113,9 +104,6 @@ final class TranscriberEngine: NSObject {
         static let diarizationEmbModel = "nemo_en_titanet_small.onnx"
     }
 
-    @ObservationIgnored let whisperBinary = Config.whisperBinary
-    @ObservationIgnored let modelPath = TranscriberEngine.modelsDirectory
-        .appendingPathComponent(Config.modelFileName).path
     @ObservationIgnored let sampleRate = Config.sampleRate
 
     /// Turns captured audio samples into text. Injected so tests can supply a
@@ -152,6 +140,12 @@ final class TranscriberEngine: NSObject {
 
     @ObservationIgnored var currentLogPath: URL?
     @ObservationIgnored var chunksTranscribed = 0
+
+    /// Called on the main queue when a stopped recording has been fully processed
+    /// and saved: after the last chunk is transcribed and, when speaker tagging is
+    /// on, after the labeled transcript has been written. Agent Mode waits on this
+    /// before it prints and exits — nothing else tells it the file is final.
+    @ObservationIgnored var onRecordingFinished: ((SavedTranscript?) -> Void)?
 
     static var transcriptsDir: URL { defaultOutputDirectory }
 
@@ -219,30 +213,19 @@ final class TranscriberEngine: NSObject {
     // MARK: - Recording lifecycle
 
     func startRecording() async {
-        guard FileManager.default.isExecutableFile(atPath: whisperBinary) else {
-            await MainActor.run {
-                authError = "whisper-cli not found at \(whisperBinary).\nInstall with: brew install whisper-cpp"
-            }
-            return
-        }
-        guard FileManager.default.fileExists(atPath: modelPath) else {
-            await MainActor.run {
-                authError = "Whisper model not found at:\n\(modelPath)\n\nDownload may still be in progress."
-            }
+        if let reason = transcriber.unavailableReason {
+            await MainActor.run { authError = reason }
             return
         }
 
         await MainActor.run {
             committedChunks = []
-            currentPartial = ""
             authError = nil
         }
         chunksTranscribed = 0
         sessionSegments = []
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
-        let title = formatter.string(from: Date())
+        let title = FileTranscriptStore.title(for: Date())
         let logURL = outputDirectory.appendingPathComponent("\(title).\(FileTranscriptStore.outputFileExtension)")
         currentLogPath = logURL
         // The file is written lazily on the first committed chunk (see persistTranscript),
@@ -301,7 +284,14 @@ final class TranscriberEngine: NSObject {
         loadSavedTranscripts()
 
         if let path {
-            lastRecordingTranscript = savedTranscripts.first { $0.path == path }
+            // Resolve both sides before comparing: the store's URLs come back from
+            // the filesystem, so an output folder reached through a symlink (a
+            // linked vault, /tmp) spells the same file a different way and the
+            // just-saved transcript would look like someone else's.
+            let target = path.resolvingSymlinksInPath()
+            lastRecordingTranscript = savedTranscripts.first {
+                $0.path.resolvingSymlinksInPath() == target
+            }
 
             // The just-finished recording keeps showing in the live view
             // (committedText is still non-empty). Refresh that text from the
@@ -310,12 +300,11 @@ final class TranscriberEngine: NSObject {
             // on screen, instead of only living in the file on disk.
             if let last = lastRecordingTranscript {
                 let finalText = loadTranscriptContent(last)
-                if !finalText.isEmpty {
-                    committedChunks = [finalText]
-                    currentPartial = ""
-                }
+                if !finalText.isEmpty { committedChunks = [finalText] }
             }
         }
+
+        onRecordingFinished?(lastRecordingTranscript)
     }
 
     /// Builds the "Recording — sys ✓ · mic ✓ · chunks: N · transcribing…" line

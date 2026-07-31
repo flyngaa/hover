@@ -81,6 +81,30 @@ struct FileTranscriptStore: TranscriptStore {
         return bodyLines.joined(separator: "\n")
     }
 
+    // MARK: - Recording names
+
+    /// A recording is named after the moment it started, and the sidebar reads
+    /// its date back out of that name — so the format is defined once here and
+    /// both directions go through ``title(for:)`` and ``date(fromRecordingName:)``.
+    private static let titleDateFormat = "yyyy-MM-dd_HH-mm"
+
+    private static var titleFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = titleDateFormat
+        return formatter
+    }
+
+    /// The name a recording started at `date` is saved under (no extension).
+    static func title(for date: Date) -> String {
+        titleFormatter.string(from: date)
+    }
+
+    /// The moment a recording started, recovered from its name, or nil if the
+    /// name wasn't written by us.
+    static func date(fromRecordingName name: String) -> Date? {
+        titleFormatter.date(from: String(name.prefix(titleDateFormat.count)))
+    }
+
     /// Strips the legacy `transcript_` prefix from older filenames.
     static func recordingName(from filename: String) -> String {
         let prefix = "transcript_"
@@ -94,16 +118,13 @@ struct FileTranscriptStore: TranscriptStore {
 
     func load(in directory: URL) -> TranscriptLibrary {
         let fm = FileManager.default
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm"
 
         var result: [SavedTranscript] = []
         var groupNames: [String] = []
 
         func makeTranscript(_ file: URL, group: String?) -> SavedTranscript {
             let name = Self.recordingName(from: file.deletingPathExtension().lastPathComponent)
-            let dateStr = String(name.prefix(16))
-            let date = formatter.date(from: dateStr)
+            let date = Self.date(fromRecordingName: name)
                 ?? (try? file.resourceValues(forKeys: [.creationDateKey]).creationDate)
                 ?? .distantPast
             let id = group.map { "\($0)/\(file.lastPathComponent)" } ?? file.lastPathComponent

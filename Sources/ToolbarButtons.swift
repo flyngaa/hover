@@ -93,7 +93,7 @@ struct CopyButton: View {
         // File reads happen here, on click — never during body evaluation.
         let text: String
         if !engine.committedText.isEmpty || engine.isRecording {
-            text = engine.liveDisplayText
+            text = engine.committedText
         } else if !engine.markedTranscriptIDs.isEmpty {
             text = engine.combinedMarkedContent()
         } else {

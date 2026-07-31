@@ -12,5 +12,4 @@ enum BrandColors {
     static let welcomeKeyCapFill = Color(white: 0.14)
     static let welcomeKeyCapBorder = Color(white: 0.22)
     static let welcomeKeyCapText = Color(white: 0.58)
-    static let welcomeSeparator = Color(white: 0.28)
 }

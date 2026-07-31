@@ -2,8 +2,8 @@ import Testing
 @testable import TranscriberKit
 
 /// The speaker-merge step is pure: given transcript segments and detected speaker
-/// turns, it assigns each segment to the best-overlapping speaker and groups
-/// consecutive same-speaker text into paragraphs.
+/// turns, it attributes the text to speakers — splitting a segment that spans more
+/// than one turn — and groups consecutive same-speaker text into paragraphs.
 @Suite struct MergeSpeakersTests {
 
     @Test func assignsSegmentsToOverlappingSpeaker() {
@@ -37,6 +37,49 @@ import Testing
         let segments = [TextSegment(start: 100, end: 101, text: "x")]
         #expect(
             TranscriberEngine.mergeSpeakers(segments: segments, turns: turns) == "**Unknown speaker:** x"
+        )
+    }
+
+    /// A ten-second chunk regularly covers both halves of a quick exchange. Giving
+    /// the whole chunk one label used to flatten a two-person conversation into a
+    /// single "Speaker 1", so the words are split where the floor changes hands.
+    @Test func splitsASegmentThatSpansTwoSpeakers() {
+        let turns = [
+            SpeakerTurn(start: 0, end: 5, speaker: 0),
+            SpeakerTurn(start: 5, end: 10, speaker: 1),
+        ]
+        let segments = [TextSegment(start: 0, end: 10, text: "one two three four")]
+        #expect(
+            TranscriberEngine.mergeSpeakers(segments: segments, turns: turns)
+                == "**Speaker 1:** one two\n\n**Speaker 2:** three four"
+        )
+    }
+
+    /// The split follows how long each speaker held the floor, not a plain halving.
+    @Test func splitFollowsEachSpeakersShareOfTheSegment() {
+        let turns = [
+            SpeakerTurn(start: 0, end: 8, speaker: 0),
+            SpeakerTurn(start: 8, end: 10, speaker: 1),
+        ]
+        let segments = [TextSegment(start: 0, end: 10, text: "a b c d e f g h i j")]
+        #expect(
+            TranscriberEngine.mergeSpeakers(segments: segments, turns: turns)
+                == "**Speaker 1:** a b c d e f g h\n\n**Speaker 2:** i j"
+        )
+    }
+
+    /// An interjection too brief to have earned a word doesn't get an empty
+    /// paragraph, and the surrounding speech stays in one piece.
+    @Test func aVeryBriefTurnDoesNotProduceAnEmptyParagraph() {
+        let turns = [
+            SpeakerTurn(start: 0, end: 4.9, speaker: 0),
+            SpeakerTurn(start: 4.9, end: 5.0, speaker: 1),
+            SpeakerTurn(start: 5.0, end: 10, speaker: 0),
+        ]
+        let segments = [TextSegment(start: 0, end: 10, text: "one two three four")]
+        #expect(
+            TranscriberEngine.mergeSpeakers(segments: segments, turns: turns)
+                == "**Speaker 1:** one two three four"
         )
     }
 

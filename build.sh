@@ -4,37 +4,12 @@ cd "$(dirname "$0")"
 
 APP_NAME="Hover"
 APP_BUNDLE="$APP_NAME.app"
-SOURCES=(
-    Sources/Main.swift
-    Sources/CLIOptions.swift
-    Sources/HoverCLI.swift
-    Sources/Models.swift
-    Sources/Selection.swift
-    Sources/SettingsStore.swift
-    Sources/BrandColors.swift
-    Sources/HideWindowTitle.swift
-    Sources/MenuBarMoth.swift
-    Sources/HotKeys.swift
-    Sources/WAVFile.swift
-    Sources/Chunker.swift
-    Sources/AudioCapture.swift
-    Sources/LiveAudioCapture.swift
-    Sources/Transcriber.swift
-    Sources/TranscriptStore.swift
-    Sources/VaultFinder.swift
-    Sources/TranscriberEngine.swift
-    Sources/TranscriberEngine+Transcripts.swift
-    Sources/TranscriberEngine+Selection.swift
-    Sources/TranscriberEngine+Output.swift
-    Sources/TranscriberEngine+Diarization.swift
-    Sources/OutputOptionsButton.swift
-    Sources/TranscriberApp.swift
-    Sources/ContentView.swift
-    Sources/SidebarView.swift
-    Sources/ToolbarButtons.swift
-    Sources/DetailViews.swift
-    Sources/WelcomeView.swift
-)
+
+# Every Swift file under Sources belongs to the app, so let the shell find them.
+# This used to be a hand-kept list, which silently went stale whenever a file was
+# added — the app build then failed with a puzzling "cannot find X in scope" even
+# though the tests (which use Package.swift) were perfectly happy.
+SOURCES=(Sources/*.swift)
 
 echo "Building $APP_NAME..."
 
@@ -52,9 +27,10 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 mv "$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
-# Icon and logo are optional assets — don't fail the build if one is missing.
+# Images the app loads at run time: the app icon, the welcome logo, the menu-bar
+# moth, and the Obsidian mark in the output picker. Optional, so a missing one
+# doesn't fail the build — the app falls back to a system symbol.
 [ -f AppIcon.icns ] && cp AppIcon.icns "$APP_BUNDLE/Contents/Resources/"
-[ -f Logo.svg ] && cp Logo.svg "$APP_BUNDLE/Contents/Resources/Logo.svg"
 [ -f Logo.png ] && cp Logo.png "$APP_BUNDLE/Contents/Resources/Logo.png"
 [ -f Moth.svg ] && cp Moth.svg "$APP_BUNDLE/Contents/Resources/Moth.svg"
 [ -f Obsidian.svg ] && cp Obsidian.svg "$APP_BUNDLE/Contents/Resources/Obsidian.svg"

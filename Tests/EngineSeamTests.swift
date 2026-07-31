@@ -54,4 +54,33 @@ import Foundation
 
         #expect(await waitForCommitted(engine, equals: ["from capture"]) == ["from capture"])
     }
+
+    /// Agent Mode prints the transcript and exits the moment this fires, so every
+    /// way out of `stopRecording` has to reach it. When it didn't, a headless run
+    /// exited while the speaker pass was still queued and lost the labels.
+    @Test func stopReportsThatTheRecordingFinished() async {
+        let engine = makeEngine(transcriber: FakeTranscriber(result: "hello"))
+        var finished = false
+        engine.onRecordingFinished = { _ in finished = true }
+
+        engine.stopRecording()
+
+        #expect(finished)
+    }
+
+    @Test func stopReportsFinishedEvenWhenSpeakerTaggingCannotRun() async {
+        let engine = makeEngine(transcriber: FakeTranscriber(result: "hello"))
+        engine.diarizeSpeakers = true
+        engine.currentLogPath = URL(fileURLWithPath: "/tmp/hover-seam-test.md")
+        #expect(!engine.isDiarizationAvailable, "the test bundle carries no speaker tooling")
+
+        var finished = false
+        engine.onRecordingFinished = { _ in finished = true }
+
+        engine.stopRecording()
+
+        #expect(finished)
+        // And it says why, rather than quietly saving an unlabeled transcript.
+        #expect(engine.authError != nil)
+    }
 }

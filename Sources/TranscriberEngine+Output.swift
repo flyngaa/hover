@@ -182,8 +182,4 @@ extension TranscriberEngine {
             : directory.deletingLastPathComponent()
         NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: target.path)
     }
-
-    func revealOutputDirectory() {
-        reveal(outputDirectory)
-    }
 }

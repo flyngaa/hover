@@ -7,6 +7,9 @@ import Foundation
 /// Returns a canned result instead of shelling out to `whisper-cli`.
 struct FakeTranscriber: Transcriber {
     let result: String
+    /// Always ready — which is also what makes the engine tests independent of
+    /// whether this machine happens to have whisper-cli installed.
+    var unavailableReason: String? { nil }
     func transcribe(samples: [Float]) throws -> String { result }
 }
 
@@ -36,7 +39,7 @@ final class FakeAudioCapture: AudioCapture {
     var onChunk: ((AudioChunk) -> Void)?
     var onStatus: ((CaptureStatus) -> Void)?
     func start(inputSource: InputSource, retainFullRecording: Bool) async throws -> CaptureOutcome {
-        CaptureOutcome(systemStarted: true, micStarted: true)
+        CaptureOutcome(systemStarted: true)
     }
     func stop() -> [Float]? { nil }
     func noteTranscriptionFinished() {}

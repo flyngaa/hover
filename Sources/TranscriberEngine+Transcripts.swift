@@ -12,31 +12,33 @@ extension TranscriberEngine {
     }
 
     func rename(_ transcript: SavedTranscript, to newName: String) {
-        guard let dest = transcriptStore.rename(transcript, to: newName) else { return }
-        if currentLogPath == transcript.path { currentLogPath = dest }
-
-        let wasMarked = markedTranscriptIDs.contains(transcript.id)
-        let wasLast = lastRecordingTranscript == transcript
-        loadSavedTranscripts()
-        let renamed = savedTranscripts.first { $0.path == dest }
-        if wasMarked, let renamed { replaceMarkedID(transcript.id, with: renamed.id) }
-        if wasLast { lastRecordingTranscript = renamed }
+        moveOnDisk(transcript) { transcriptStore.rename($0, to: newName) }
     }
 
     func move(_ transcript: SavedTranscript, toGroup group: String?) {
-        guard let dest = transcriptStore.move(transcript, toGroup: group, in: outputDirectory) else { return }
+        moveOnDisk(transcript) { transcriptStore.move($0, toGroup: group, in: outputDirectory) }
+    }
+
+    /// Perform a file move and catch app state up with it.
+    ///
+    /// A transcript's ID is derived from its path, so any move invalidates every
+    /// reference we hold: the tick in the sidebar, the file the in-progress
+    /// recording is appending to, and the pointer to the just-finished recording.
+    /// Renaming and regrouping differ only in the file operation itself, so they
+    /// share this reconciliation rather than each keeping their own copy.
+    private func moveOnDisk(
+        _ transcript: SavedTranscript,
+        using fileMove: (SavedTranscript) -> URL?
+    ) {
+        guard let dest = fileMove(transcript) else { return }
         if currentLogPath == transcript.path { currentLogPath = dest }
 
         let wasMarked = markedTranscriptIDs.contains(transcript.id)
         let wasLast = lastRecordingTranscript == transcript
         loadSavedTranscripts()
-        let moved = savedTranscripts.first { $0.path == dest }
-        if wasMarked, let moved { replaceMarkedID(transcript.id, with: moved.id) }
-        if wasLast { lastRecordingTranscript = moved }
-    }
-
-    func matches(_ transcript: SavedTranscript, query: String) -> Bool {
-        transcriptStore.matches(transcript, query: query)
+        let updated = savedTranscripts.first { $0.path == dest }
+        if wasMarked, let updated { replaceMarkedID(transcript.id, with: updated.id) }
+        if wasLast { lastRecordingTranscript = updated }
     }
 
     /// Search all transcripts off the main thread, returning the matching IDs.

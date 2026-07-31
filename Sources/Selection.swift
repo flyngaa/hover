@@ -15,7 +15,6 @@ struct Selection: Equatable {
     var anchorID: String?
 
     var isEmpty: Bool { markedIDs.isEmpty }
-    var count: Int { markedIDs.count }
 
     func isMarked(_ id: String) -> Bool { markedIDs.contains(id) }
 

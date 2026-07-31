@@ -6,6 +6,11 @@ import AppKit
 ///
 /// No dock icon and no window — the app runs as a background accessory so it can
 /// be driven from a tool like Claude Code without stealing focus.
+///
+/// A run is expected to outlive the terminal that started it. Closing the window
+/// or ending the session means "stop and save", never "drop the recording": the
+/// captured audio only exists in memory until the transcript has been written, so
+/// dying early throws the whole recording away.
 enum HoverCLI {
 
     /// Entry point from `main`. Never returns (drives the AppKit run loop, then
@@ -16,10 +21,17 @@ enum HoverCLI {
             exit(0)
         }
 
+        // Writing to a terminal that has gone away otherwise raises SIGPIPE, whose
+        // default action is to kill us — losing a finished recording at the very
+        // last step, while printing it. Failed writes are dropped instead.
+        signal(SIGPIPE, SIG_IGN)
+
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory) // no dock icon, no window
         let delegate = Delegate(options: options)
         app.delegate = delegate
+        // Before the run loop, so a hangup during AppKit's launch is still caught.
+        delegate.installStopSignals()
         app.run()
         exit(0) // not reached; the delegate exits when the pipeline finishes
     }
@@ -30,6 +42,18 @@ enum HoverCLI {
         private let options: CLIOptions
         private let engine = TranscriberEngine()
         private var signalSources: [DispatchSourceSignal] = []
+
+        /// Set once Ctrl-C / `kill` has arrived. Recorded as a flag rather than
+        /// waking a waiter directly, so a Stop that lands while the microphone is
+        /// still starting up isn't lost.
+        private var stopRequested = false
+
+        /// Set once the engine reports the transcript on disk is final.
+        private var recordingFinished = false
+
+        /// How long to give the post-recording work (last chunk + speaker pass)
+        /// before printing whatever is on disk and giving up.
+        private static let processingTimeout: Double = 300
 
         init(options: CLIOptions) {
             self.options = options
@@ -57,9 +81,8 @@ enum HoverCLI {
 
             await waitForStop()
 
-            printStatus("Transcribing…")
-            engine.stopRecording()
-            await waitForTranscriptionToSettle()
+            printStatus(engine.diarizeSpeakers ? "Transcribing and tagging speakers…" : "Transcribing…")
+            await stopAndAwaitFinalTranscript()
 
             emitResult()
             exit(0)
@@ -104,61 +127,66 @@ enum HoverCLI {
             return "until Ctrl-C"
         }
 
+        /// Everything that means "stop recording and save": Ctrl-C, `kill`, and the
+        /// hangup a closing terminal or an ending session sends. All three used to
+        /// be a request to *quit*; only the first two were even handled.
+        private static let stopSignals: [Int32] = [SIGINT, SIGTERM, SIGHUP]
+
+        /// Take over the stop signals from the very start of the run — their default
+        /// action is to kill the process outright, and both a stop script and a
+        /// closing terminal can easily arrive while the microphone is still coming up.
+        fileprivate func installStopSignals() {
+            for sig in Self.stopSignals {
+                signal(sig, SIG_IGN) // replace the default terminate behaviour
+                let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+                source.setEventHandler { [weak self] in self?.noteStopRequested() }
+                source.resume()
+                signalSources.append(source)
+            }
+        }
+
+        /// The first stop signal ends the recording; the transcript is only saved
+        /// once processing finishes, so the run has to stay alive past this point.
+        private func noteStopRequested() {
+            guard !stopRequested else { return }
+            stopRequested = true
+            signalSources.forEach { $0.cancel() }
+            signalSources = []
+            // Hand Ctrl-C and `kill` back to the system, so a run that gets stuck
+            // can still be forced to quit. SIGHUP stays ignored: a terminal being
+            // torn down can send several, and nobody is watching to retry — the
+            // speaker pass has to be allowed to finish.
+            for sig in [SIGINT, SIGTERM] { signal(sig, SIG_DFL) }
+        }
+
         @MainActor
         private func waitForStop() async {
-            if let duration = options.duration {
-                try? await Task.sleep(for: .seconds(duration))
-            } else {
-                await waitForInterrupt()
+            let deadline = options.duration.map { Date().addingTimeInterval($0) }
+            while !stopRequested {
+                if let deadline, Date() >= deadline { return }
+                try? await Task.sleep(for: .milliseconds(200))
             }
         }
 
-        /// Suspend until SIGINT (Ctrl-C) or SIGTERM arrives.
+        /// Stop recording, then wait for the engine to say the file on disk is final.
+        ///
+        /// The engine's completion signal is the only thing worth waiting on here:
+        /// when `stopRecording` returns, the last chunk is still being transcribed
+        /// on a background queue, and the speaker pass only starts after that. The
+        /// callback is armed first because a run without speaker tagging finishes
+        /// inline, before `stopRecording` even returns.
         @MainActor
-        private func waitForInterrupt() async {
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                var resumed = false
-                let resume = {
-                    guard !resumed else { return }
-                    resumed = true
-                    self.signalSources.forEach { $0.cancel() }
-                    continuation.resume()
-                }
-                for sig in [SIGINT, SIGTERM] {
-                    signal(sig, SIG_IGN) // stop the default terminate behaviour
-                    let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
-                    source.setEventHandler { resume() }
-                    source.resume()
-                    signalSources.append(source)
-                }
-            }
-        }
+        private func stopAndAwaitFinalTranscript() async {
+            engine.onRecordingFinished = { [weak self] _ in self?.recordingFinished = true }
+            engine.stopRecording()
 
-        /// After Stop, the final chunk may still be transcribing on a background
-        /// queue, and speaker tagging (if on) runs afterwards. Wait until things
-        /// settle so the saved transcript is complete before we read it.
-        @MainActor
-        private func waitForTranscriptionToSettle() async {
-            // 1. Wait for the committed-chunk count to stop growing (last chunk).
-            var lastCount = -1
-            var stableTicks = 0
-            for _ in 0..<200 { // up to ~60s
-                let count = engine.committedChunks.count
-                if count == lastCount {
-                    stableTicks += 1
-                    if stableTicks >= 3 { break }
-                } else {
-                    stableTicks = 0
-                    lastCount = count
-                }
-                try? await Task.sleep(for: .milliseconds(300))
+            let deadline = Date().addingTimeInterval(Self.processingTimeout)
+            while !recordingFinished, Date() < deadline {
+                try? await Task.sleep(for: .milliseconds(100))
             }
-
-            // 2. If tagging is on, wait for the post-recording pass to finish.
-            if engine.diarizeSpeakers {
-                for _ in 0..<360 where engine.statusMessage != "Ready" { // up to ~3 min
-                    try? await Task.sleep(for: .milliseconds(500))
-                }
+            if !recordingFinished {
+                printStatus("Gave up waiting after \(Int(Self.processingTimeout))s — "
+                    + "saving what's ready, speaker labels may be missing.")
             }
         }
 
@@ -166,9 +194,33 @@ enum HoverCLI {
 
         @MainActor
         private func emitResult() {
-            let transcript = engine.lastRecordingTranscript
-            let text = transcript.map { engine.loadTranscriptContent($0) } ?? ""
-            let savedPath = transcript?.path.path
+            var text = ""
+            var savedPath: String?
+
+            if let transcript = engine.lastRecordingTranscript {
+                text = engine.loadTranscriptContent(transcript)
+                savedPath = transcript.path.path
+            }
+
+            // Safety net: fall back to the newest file in the output folder if the
+            // engine couldn't tell us which transcript it just saved. Stripped the
+            // same way, so stdout looks identical whichever route got us here.
+            if text.isEmpty {
+                let fm = FileManager.default
+                if let contents = try? fm.contentsOfDirectory(at: engine.outputDirectory, includingPropertiesForKeys: [.contentModificationDateKey]),
+                   let newestFile = contents
+                    .filter({ $0.pathExtension == FileTranscriptStore.outputFileExtension })
+                    .max(by: { a, b in
+                        let aDate = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                        let bDate = (try? b.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                        return aDate < bDate
+                    }),
+                   let content = try? String(contentsOf: newestFile, encoding: .utf8),
+                   !content.isEmpty {
+                    text = FileTranscriptStore.displayText(fromFile: content)
+                    savedPath = newestFile.path
+                }
+            }
 
             if options.json {
                 emitJSON(text: text, savedPath: savedPath)
@@ -181,6 +233,11 @@ enum HoverCLI {
                 print(text) // the transcript itself goes to stdout for the agent
             }
             if let savedPath { printStatus("Saved: \(savedPath)") }
+            // e.g. speaker tagging isn't set up, or system audio couldn't start.
+            // Without this the run looks clean but quietly skipped something.
+            if let warning = engine.authError {
+                printStatus(warning.replacingOccurrences(of: "\n", with: " "))
+            }
         }
 
         private func emitJSON(text: String, savedPath: String?) {
@@ -197,12 +254,21 @@ enum HoverCLI {
         /// Status/progress lines go to stderr so stdout stays clean for the
         /// transcript (which an agent will capture).
         private func printStatus(_ message: String) {
-            FileHandle.standardError.write(Data(("• " + message + "\n").utf8))
+            writeToStandardError("• " + message + "\n")
         }
 
         private func fail(_ message: String) -> Never {
-            FileHandle.standardError.write(Data(("Error: " + message + "\n").utf8))
+            writeToStandardError("Error: " + message + "\n")
             exit(1)
+        }
+
+        /// Uses `write(2)` rather than `FileHandle`, which raises an exception when
+        /// the far end has gone away — and the terminal that started a long recording
+        /// often has by the time we report on it. Nobody is reading, so a dropped
+        /// line costs nothing; being killed here would cost the whole recording.
+        private func writeToStandardError(_ text: String) {
+            let bytes = Array(text.utf8)
+            _ = bytes.withUnsafeBufferPointer { write(STDERR_FILENO, $0.baseAddress, $0.count) }
         }
     }
 }

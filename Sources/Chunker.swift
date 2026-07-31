@@ -77,17 +77,6 @@ struct Chunker {
         // Flush early if the tail has gone quiet — a natural sentence break.
         let windowCount = Int(silenceWindowSeconds * Double(sampleRate))
         let tail = pending.suffix(windowCount)
-        return Chunker.rms(of: tail) < silenceRMSThreshold
-    }
-
-    /// Root-mean-square amplitude — a cheap proxy for loudness/silence.
-    static func rms<S: Sequence>(of samples: S) -> Float where S.Element == Float {
-        var sum: Float = 0
-        var count = 0
-        for sample in samples {
-            sum += sample * sample
-            count += 1
-        }
-        return (sum / Float(max(count, 1))).squareRoot()
+        return AudioLevel.rms(of: tail) < silenceRMSThreshold
     }
 }

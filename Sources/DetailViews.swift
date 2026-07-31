@@ -6,7 +6,7 @@ struct LiveView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                Text(engine.liveDisplayText)
+                Text(engine.committedText)
                     .font(.body)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -16,7 +16,7 @@ struct LiveView: View {
                     .wipeShimmer(active: engine.isProcessing)
                     .id("transcript")
             }
-            .onChange(of: engine.liveDisplayText) {
+            .onChange(of: engine.committedText) {
                 proxy.scrollTo("transcript", anchor: .bottom)
             }
         }

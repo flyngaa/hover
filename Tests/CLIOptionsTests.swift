@@ -63,12 +63,6 @@ import Testing
         #expect(options.isCLI)
     }
 
-    @Test func autotestBackCompat() {
-        #expect(CLIOptions.parse(["--autotest"]).duration == 25)
-        #expect(CLIOptions.parse(["--autotest", "10"]).duration == 10)
-        #expect(CLIOptions.parse(["--autotest"]).isCLI)
-    }
-
     @Test func combinedFlags() {
         let options = CLIOptions.parse(["record", "--duration", "45", "--output", "Work", "--json"])
         #expect(options.isCLI)

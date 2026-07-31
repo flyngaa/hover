@@ -2,7 +2,7 @@ import Testing
 @testable import TranscriberKit
 
 /// The bits of the Whisper transcriber that don't need the actual `whisper-cli`
-/// binary: cleaning its noisy output and the silence check.
+/// binary: cleaning its noisy output.
 @Suite struct WhisperTranscriberTests {
 
     @Test func cleanupStripsAnnotationsAndBlankLines() {
@@ -20,10 +20,5 @@ import Testing
 
     @Test func cleanupOfPureNoiseIsEmpty() {
         #expect(WhisperCLITranscriber.cleanWhisperOutput("[MUSIC]\n[APPLAUSE]") == "")
-    }
-
-    @Test func rms() {
-        #expect(abs(WhisperCLITranscriber.rms(of: [0.6, -0.8]) - 0.7071) < 0.0001)
-        #expect(WhisperCLITranscriber.rms(of: [Float]()) == 0)
     }
 }

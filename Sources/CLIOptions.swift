@@ -43,17 +43,6 @@ struct CLIOptions: Equatable {
             case "record", "--record", "-r":
                 options.isCLI = true
 
-            case "--autotest":
-                // Back-compat with the old scripted end-to-end check: record for
-                // N seconds (default 25), then quit.
-                options.isCLI = true
-                if let raw = value(), let seconds = Double(raw) {
-                    options.duration = seconds
-                    index += 1
-                } else {
-                    options.duration = 25
-                }
-
             case "--duration", "--seconds", "-d":
                 options.isCLI = true
                 if let raw = value(), let seconds = Double(raw) {
