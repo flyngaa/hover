@@ -47,3 +47,44 @@ final class FakeAudioCapture: AudioCapture {
     /// Test helper: simulate the capture emitting a ready chunk.
     func emit(_ chunk: AudioChunk) { onChunk?(chunk) }
 }
+
+/// In-memory Model Setup so engine tests never hit the network or disk.
+///
+/// Configure which artifacts are already present and ``fetchError`` to drive
+/// the setup flows the engine orchestrates (required / skipped / fail / Retry).
+final class FakeModelSetup: ModelSetup {
+    /// Artifacts already on hand. ``isComplete`` is derived from this set.
+    var present: Set<ModelArtifact>
+    /// When non-nil, the next ``fetchMissing`` call throws this and clears it,
+    /// so a following Retry can succeed.
+    var fetchError: Error?
+    /// How many times ``fetchMissing`` has been called.
+    private(set) var fetchCount = 0
+    /// Artifacts requested on the most recent fetch — should be only the gaps.
+    private(set) var lastFetched: [ModelArtifact] = []
+
+    var isComplete: Bool {
+        present.count == ModelArtifact.allCases.count
+    }
+
+    init(isComplete: Bool = true) {
+        self.present = isComplete ? Set(ModelArtifact.allCases) : []
+    }
+
+    init(present: Set<ModelArtifact>) {
+        self.present = present
+    }
+
+    func fetchMissing(progress: @escaping @Sendable (Double) -> Void) async throws {
+        fetchCount += 1
+        let missing = ModelArtifact.allCases.filter { !present.contains($0) }
+        lastFetched = missing
+        if let fetchError {
+            self.fetchError = nil
+            throw fetchError
+        }
+        progress(0.5)
+        progress(1.0)
+        present = Set(ModelArtifact.allCases)
+    }
+}

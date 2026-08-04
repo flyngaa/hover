@@ -71,3 +71,7 @@ _Avoid_: server mode, daemon, autotest (autotest is one legacy flag, not the con
 **Install Layout**:
 Where the Whisper helper, the speaker-tagging helper, and the model data live on this Mac. A value type that resolves presence-based from an injected bundle root and home directory: bundled helpers and Application Support model data win when present, otherwise the dev locations (Homebrew `whisper-cli`, transcripts `models/`, `diar-venv`). The Transcriber and the speaker-tagging pass both read from it; model data never follows the Output Destination.
 _Avoid_: path resolver, tool locator, bootstrap paths.
+
+**Model Setup**:
+The thing that reports which model data is present and fetches what is missing, reporting overall progress. A seam: production downloads the three pinned model files into the Application Support model directory; tests supply a fake. Required until all three files are present and size-checked; the app window shows a setup screen in place of its normal content while setup is required. Agent Mode does not run it — a headless run with model data missing fails fast on stderr.
+_Avoid_: installer, downloader, bootstrapper.

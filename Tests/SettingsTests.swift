@@ -59,7 +59,8 @@ import Foundation
             audioCapture: FakeAudioCapture(),
             transcriptStore: FakeTranscriptStore(),
             vaultFinder: FakeVaultFinder(),
-            settings: settings
+            settings: settings,
+            modelSetup: FakeModelSetup(isComplete: true)
         )
     }
 

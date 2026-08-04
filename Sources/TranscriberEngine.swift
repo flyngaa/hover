@@ -125,6 +125,18 @@ final class TranscriberEngine: NSObject {
     /// one place. Injected so tests never touch the real home directory.
     @ObservationIgnored let installLayout: InstallLayout
 
+    /// Reports which model data is present and fetches what is missing. Injected
+    /// so tests can supply a fake instead of hitting the network.
+    @ObservationIgnored let modelSetup: ModelSetup
+
+    /// First-launch Model Setup state for the UI. ``notNeeded`` when all three
+    /// files are present; otherwise the setup screen replaces the normal content.
+    var modelSetupStatus: ModelSetupStatus = .notNeeded
+
+    /// Guards against overlapping fetches when the setup screen appears and the
+    /// user also taps Retry, or when onAppear fires twice.
+    @ObservationIgnored private var isFetchingModels = false
+
     // MARK: - Session state
     // @ObservationIgnored: mutated on background queues and never read by views.
 
@@ -154,7 +166,8 @@ final class TranscriberEngine: NSObject {
         transcriptStore: TranscriptStore = FileTranscriptStore(),
         vaultFinder: VaultFinder = ObsidianVaultFinder(),
         settings: SettingsStore = UserDefaultsSettings(),
-        installLayout: InstallLayout = .current
+        installLayout: InstallLayout = .current,
+        modelSetup: ModelSetup? = nil
     ) {
         self.installLayout = installLayout
         // Default Transcriber shares this layout so helper/model paths can't drift.
@@ -166,6 +179,11 @@ final class TranscriberEngine: NSObject {
         self.transcriptStore = transcriptStore
         self.vaultFinder = vaultFinder
         self.settings = settings
+        // Default Model Setup targets the resolved models directory so release
+        // builds fill Application Support and a complete dev tree is left alone.
+        self.modelSetup = modelSetup ?? NetworkedModelSetup(
+            modelsDirectory: installLayout.modelsDirectory
+        )
         super.init()
 
         // Load persisted settings. Assigning inside init doesn't fire the didSet
@@ -177,6 +195,13 @@ final class TranscriberEngine: NSObject {
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         loadSavedTranscripts()
         wireAudioCapture()
+
+        // Setup is required until all three files are present and size-checked.
+        // Start at running(0) so the UI shows the screen; the screen auto-starts
+        // the fetch. When data is already complete, stay on notNeeded.
+        if !self.modelSetup.isComplete {
+            modelSetupStatus = .running(fraction: 0)
+        }
     }
 
     /// Route the capture's chunks into transcription and its status into the UI.
@@ -215,9 +240,59 @@ final class TranscriberEngine: NSObject {
         transcriptStore.write(title: title, body: committedText, to: path)
     }
 
+    // MARK: - Model Setup
+
+    /// Begin (or retry) fetching missing model data. The setup screen calls this
+    /// when it appears and again when the user taps Retry. Already-present files
+    /// are skipped by the Model Setup seam.
+    func beginModelSetup() {
+        guard !isFetchingModels else { return }
+        guard !modelSetup.isComplete else {
+            modelSetupStatus = .notNeeded
+            return
+        }
+
+        isFetchingModels = true
+        // Don't force fraction 0 here — fetchMissing reports a weighted starting
+        // fraction first (already-present files count), so Retry after a partial
+        // failure doesn't flash an empty progress bar.
+        let setup = modelSetup
+        Task { [weak self] in
+            do {
+                try await setup.fetchMissing { fraction in
+                    DispatchQueue.main.async {
+                        self?.modelSetupStatus = .running(fraction: fraction)
+                    }
+                }
+                await MainActor.run {
+                    self?.isFetchingModels = false
+                    self?.modelSetupStatus = .notNeeded
+                }
+            } catch {
+                let message = error.localizedDescription.isEmpty
+                    ? "Couldn't download model data."
+                    : error.localizedDescription
+                await MainActor.run {
+                    self?.isFetchingModels = false
+                    self?.modelSetupStatus = .failed(message: message)
+                }
+            }
+        }
+    }
+
+    /// Plain reason shown when the user tries to record before setup finishes.
+    static let modelSetupIncompleteReason =
+        "Hover still needs to download about 600 MB of model data before it can transcribe. Wait for setup to finish, or tap Retry if it failed."
+
     // MARK: - Recording lifecycle
 
     func startRecording() async {
+        // Setup has no skip — refuse to record into an app that can't transcribe.
+        if !modelSetup.isComplete {
+            await MainActor.run { authError = Self.modelSetupIncompleteReason }
+            return
+        }
+
         if let reason = transcriber.unavailableReason {
             await MainActor.run { authError = reason }
             return
