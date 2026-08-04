@@ -4,6 +4,18 @@ struct ContentView: View {
     @Environment(TranscriberEngine.self) private var engine
 
     var body: some View {
+        Group {
+            if engine.modelSetupStatus == .notNeeded {
+                appContent
+            } else {
+                ModelSetupView()
+            }
+        }
+        .tint(BrandColors.orange)
+        .background(HideWindowTitle())
+    }
+
+    private var appContent: some View {
         NavigationSplitView {
             SidebarView()
         } detail: {
@@ -21,8 +33,6 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
-        .tint(BrandColors.orange)
-        .background(HideWindowTitle())
     }
 
     @ViewBuilder

@@ -1,34 +1,60 @@
 import Foundation
 
 /// Speaker tagging ("who spoke when"). After a recording stops, the full audio
-/// is analyzed for speaker turns (sherpa-onnx, run via a bundled Python
-/// helper) and merged with the timestamped text already captured during live
-/// transcription — there is no second Whisper pass. The result is a
-/// "Speaker 1: … / Speaker 2: …" transcript. Everything runs locally.
+/// is analyzed for speaker turns via sherpa-onnx — the native helper when one
+/// is present, otherwise the `diar-venv` + `diarize.py` path — and merged with
+/// the timestamped text already captured during live transcription. There is
+/// no second Whisper pass. The result is a "Speaker 1: … / Speaker 2: …"
+/// transcript. Everything runs locally.
 extension TranscriberEngine {
 
     // MARK: - Tooling locations
 
-    var diarizationPython: String {
-        Self.modelsDirectory.appendingPathComponent(Config.diarizationVenvPython).path
+    /// Paths come from ``installLayout`` so the Transcriber and this pass agree.
+    var speakerTaggingHelperPath: String {
+        installLayout.speakerTaggingHelper.path
     }
     var diarizationSegModelPath: String {
-        Self.modelsDirectory.appendingPathComponent(Config.diarizationSegModel).path
+        installLayout.segmentationModel.path
     }
     var diarizationEmbModelPath: String {
-        Self.modelsDirectory.appendingPathComponent(Config.diarizationEmbModel).path
+        installLayout.embeddingModel.path
     }
     var diarizationScriptPath: String? {
         Bundle.main.path(forResource: "diarize", ofType: "py")
     }
 
-    /// True only when the venv, both models, and the helper script are present.
+    /// True when this Mac can tag speakers: native helper + both models, or the
+    /// dev venv + script + both models.
     var isDiarizationAvailable: Bool {
-        let fm = FileManager.default
-        return fm.isExecutableFile(atPath: diarizationPython)
-            && fm.fileExists(atPath: diarizationSegModelPath)
-            && fm.fileExists(atPath: diarizationEmbModelPath)
-            && diarizationScriptPath != nil
+        Self.speakerTaggingIsAvailable(
+            helper: URL(fileURLWithPath: speakerTaggingHelperPath),
+            segmentationModel: URL(fileURLWithPath: diarizationSegModelPath),
+            embeddingModel: URL(fileURLWithPath: diarizationEmbModelPath),
+            scriptPath: diarizationScriptPath
+        )
+    }
+
+    /// Pure availability check — injected paths and a FileManager so tests never
+    /// need the real helper binaries or the developer's models folder.
+    static func speakerTaggingIsAvailable(
+        helper: URL,
+        segmentationModel: URL,
+        embeddingModel: URL,
+        scriptPath: String?,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        guard fileManager.isExecutableFile(atPath: helper.path),
+              fileManager.fileExists(atPath: segmentationModel.path),
+              fileManager.fileExists(atPath: embeddingModel.path) else {
+            return false
+        }
+        if isNativeSpeakerTaggingHelper(helper) { return true }
+        return scriptPath != nil
+    }
+
+    static func isNativeSpeakerTaggingHelper(_ helper: URL) -> Bool {
+        helper.lastPathComponent == "sherpa-onnx-offline-speaker-diarization"
     }
 
     // MARK: - Orchestration
@@ -44,7 +70,7 @@ extension TranscriberEngine {
 
         guard isDiarizationAvailable else {
             log("Speaker tagging requested but tooling is missing")
-            authError = "Speaker tagging isn't set up on this Mac yet, so the transcript was saved without speaker labels.\n\nThe local speaker-tagging models or their Python environment weren't found in the models folder."
+            authError = "Speaker tagging isn't set up on this Mac yet, so the transcript was saved without speaker labels.\n\nThe speaker-tagging helper or its model data wasn't found."
             finishRecording(path: logPath)
             return
         }
@@ -115,27 +141,102 @@ extension TranscriberEngine {
         log("Speaker tagging: wrote labeled transcript to \(logPath.path) (\(turns.count) turns)")
     }
 
-    // MARK: - sherpa-onnx diarizer (via Python helper)
+    // MARK: - sherpa-onnx diarizer
+
+    /// Tuning shared with `Scripts/diarize.py` so the native helper and the
+    /// Python path produce equivalent clustering.
+    static let speakerTaggingClusterThreshold = 0.8
+    static let speakerTaggingMinDurationOn = 0.5
+    static let speakerTaggingMinDurationOff = 0.5
+
+    /// CLI args for `sherpa-onnx-offline-speaker-diarization`, including today's
+    /// threshold and minimum on/off durations.
+    static func nativeSpeakerTaggingArguments(
+        segmentationModel: String,
+        embeddingModel: String,
+        wavPath: String
+    ) -> [String] {
+        [
+            "--clustering.cluster-threshold=\(speakerTaggingClusterThreshold)",
+            "--min-duration-on=\(speakerTaggingMinDurationOn)",
+            "--min-duration-off=\(speakerTaggingMinDurationOff)",
+            "--segmentation.pyannote-model=\(segmentationModel)",
+            "--embedding.model=\(embeddingModel)",
+            wavPath,
+        ]
+    }
 
     private func runSpeakerDiarizer(wavURL: URL) -> [SpeakerTurn]? {
+        let helper = URL(fileURLWithPath: speakerTaggingHelperPath)
+        guard FileManager.default.isExecutableFile(atPath: helper.path) else {
+            log("Speaker tagging: helper not found at \(helper.path)")
+            return nil
+        }
+
+        if Self.isNativeSpeakerTaggingHelper(helper) {
+            return runNativeSpeakerDiarizer(helper: helper, wavURL: wavURL)
+        }
+        return runPythonSpeakerDiarizer(python: helper, wavURL: wavURL)
+    }
+
+    private func runNativeSpeakerDiarizer(helper: URL, wavURL: URL) -> [SpeakerTurn]? {
+        let arguments = Self.nativeSpeakerTaggingArguments(
+            segmentationModel: diarizationSegModelPath,
+            embeddingModel: diarizationEmbModelPath,
+            wavPath: wavURL.path
+        )
+        guard let stdout = runSpeakerTaggingProcess(
+            executable: helper, arguments: arguments
+        ) else {
+            return nil
+        }
+        let turns = Self.parseNativeSpeakerTurns(stdout)
+        if turns.isEmpty {
+            log("Speaker tagging: native helper produced no parseable turns")
+        }
+        return turns
+    }
+
+    private func runPythonSpeakerDiarizer(python: URL, wavURL: URL) -> [SpeakerTurn]? {
         guard let script = diarizationScriptPath else {
             log("Speaker tagging: diarization script not found in bundle")
             return nil
         }
 
-        guard FileManager.default.fileExists(atPath: diarizationPython) else {
-            log("Speaker tagging: Python executable not found at \(diarizationPython)")
-            return nil
-        }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: diarizationPython)
-        process.arguments = [
+        let arguments = [
             script,
             "--seg-model", diarizationSegModelPath,
             "--emb-model", diarizationEmbModelPath,
             "--wav", wavURL.path,
         ]
+        guard let stdout = runSpeakerTaggingProcess(
+            executable: python, arguments: arguments
+        ) else {
+            return nil
+        }
+        guard let data = stdout.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let segs = obj["segments"] as? [[String: Any]] else {
+            log("Speaker tagging: failed to parse diarizer JSON response: \(stdout)")
+            return nil
+        }
+
+        return segs.compactMap { seg in
+            guard let start = (seg["start"] as? NSNumber)?.doubleValue,
+                  let end = (seg["end"] as? NSNumber)?.doubleValue,
+                  let speaker = (seg["speaker"] as? NSNumber)?.intValue else { return nil }
+            return SpeakerTurn(start: start, end: end, speaker: speaker)
+        }
+    }
+
+    /// Spawn a helper, wait for exit, and return stdout on success.
+    private func runSpeakerTaggingProcess(
+        executable: URL,
+        arguments: [String]
+    ) -> String? {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
         let stdout = Pipe()
         let stderr = Pipe()
         process.standardOutput = stdout
@@ -157,19 +258,38 @@ extension TranscriberEngine {
         }
 
         let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let segs = obj["segments"] as? [[String: Any]] else {
-            let response = String(data: data, encoding: .utf8) ?? "(empty)"
-            log("Speaker tagging: failed to parse diarizer JSON response: \(response)")
+        return String(data: data, encoding: .utf8) ?? ""
+    }
+
+    // MARK: - Native helper output
+
+    /// Parse stdout from `sherpa-onnx-offline-speaker-diarization` into turns.
+    ///
+    /// The helper prints human lines like `0.000 -- 3.800 speaker_00`, plus
+    /// config/progress noise. Non-matching lines are skipped so a partial or
+    /// noisy dump still yields the turns that are present.
+    static func parseNativeSpeakerTurns(_ output: String) -> [SpeakerTurn] {
+        output.split(whereSeparator: \.isNewline).compactMap { line in
+            parseNativeSpeakerTurnLine(String(line))
+        }
+    }
+
+    private static func parseNativeSpeakerTurnLine(_ line: String) -> SpeakerTurn? {
+        // `%.3f -- %.3f speaker_%02d` from OfflineSpeakerDiarizationSegment::ToString
+        let pattern = #"^\s*([0-9]+(?:\.[0-9]+)?)\s+--\s+([0-9]+(?:\.[0-9]+)?)\s+speaker_(\d+)\s*$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard let match = regex.firstMatch(in: line, range: range),
+              match.numberOfRanges == 4,
+              let startRange = Range(match.range(at: 1), in: line),
+              let endRange = Range(match.range(at: 2), in: line),
+              let speakerRange = Range(match.range(at: 3), in: line),
+              let start = Double(line[startRange]),
+              let end = Double(line[endRange]),
+              let speaker = Int(line[speakerRange]) else {
             return nil
         }
-
-        return segs.compactMap { seg in
-            guard let start = (seg["start"] as? NSNumber)?.doubleValue,
-                  let end = (seg["end"] as? NSNumber)?.doubleValue,
-                  let speaker = (seg["speaker"] as? NSNumber)?.intValue else { return nil }
-            return SpeakerTurn(start: start, end: end, speaker: speaker)
-        }
+        return SpeakerTurn(start: start, end: end, speaker: speaker)
     }
 
     // MARK: - Merge

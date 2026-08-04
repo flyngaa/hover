@@ -45,21 +45,12 @@ enum TranscriptionError: Error, LocalizedError {
 /// ``Transcriber`` backed by the whisper.cpp command-line tool.
 ///
 /// Owns everything between "here are some samples" and "here is the text", and
-/// everything about whisper itself: where the binary and model live, whether they
-/// are installed, WAV-writing, spawning `whisper-cli`, cleaning its output, and
-/// dropping silence / hallucinated fragments. Nothing outside this file needs to
-/// know whisper exists.
+/// everything about whisper itself: whether the binary and model are installed,
+/// WAV-writing, spawning `whisper-cli`, cleaning its output, and dropping silence
+/// / hallucinated fragments. Paths come from ``InstallLayout`` so the release and
+/// dev locations stay in one place — nothing outside this file needs to know
+/// whisper exists.
 struct WhisperCLITranscriber: Transcriber {
-
-    /// Absolute path to the `whisper-cli` executable (`brew install whisper-cpp`).
-    private static let binary = "/opt/homebrew/bin/whisper-cli"
-
-    /// GGML model filename, inside the app's models directory.
-    private static let modelFileName = "ggml-large-v3-turbo-q5_0.bin"
-
-    private static var modelPath: String {
-        TranscriberEngine.modelsDirectory.appendingPathComponent(modelFileName).path
-    }
 
     /// Leave a couple of cores for the live audio capture, which must not stutter.
     private static var threadCount: Int {
@@ -72,19 +63,32 @@ struct WhisperCLITranscriber: Transcriber {
     /// Below half this RMS the whole chunk is treated as silence and skipped.
     private let silenceRMSThreshold = TranscriberEngine.Config.silenceRMSThreshold
 
+    /// Resolved helper and model-data locations. Injected so tests can supply a
+    /// layout without reading the real home or Application Support.
+    private let layout: InstallLayout
+
     /// Called with a short human-readable line for logging. Defaults to no-op.
     let log: (String) -> Void
 
-    init(log: @escaping (String) -> Void = { _ in }) {
+    init(
+        layout: InstallLayout = .current,
+        log: @escaping (String) -> Void = { _ in }
+    ) {
+        self.layout = layout
         self.log = log
     }
 
     var unavailableReason: String? {
-        guard FileManager.default.isExecutableFile(atPath: Self.binary) else {
-            return "whisper-cli not found at \(Self.binary).\nInstall with: brew install whisper-cpp"
+        let binary = layout.whisperHelper.path
+        guard FileManager.default.isExecutableFile(atPath: binary) else {
+            if binary == InstallLayout.homebrewWhisperHelper {
+                return "whisper-cli not found at \(binary).\nInstall with: brew install whisper-cpp"
+            }
+            return "whisper-cli not found at \(binary)."
         }
-        guard FileManager.default.fileExists(atPath: Self.modelPath) else {
-            return "Whisper model not found at:\n\(Self.modelPath)\n\nDownload may still be in progress."
+        let modelPath = layout.ggmlModel.path
+        guard FileManager.default.fileExists(atPath: modelPath) else {
+            return "Whisper model not found at:\n\(modelPath)\n\nDownload may still be in progress."
         }
         return nil
     }
@@ -120,9 +124,9 @@ struct WhisperCLITranscriber: Transcriber {
     /// Runs whisper-cli on a WAV file and returns its raw stdout.
     private func runWhisper(on wavURL: URL) throws -> String {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: Self.binary)
+        process.executableURL = layout.whisperHelper
         process.arguments = [
-            "-m", Self.modelPath,
+            "-m", layout.ggmlModel.path,
             "-f", wavURL.path,
             "--no-timestamps",
             "--language", "auto",
