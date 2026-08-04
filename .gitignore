@@ -5,6 +5,9 @@
 Hover.app/
 Hover
 
+# Release artifacts and cached helper binaries (never commit Mach-Os)
+dist/
+
 # Compiled binary left behind by `swift build`
 /transcriber
 
