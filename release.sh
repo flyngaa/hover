@@ -5,6 +5,9 @@
 # Does NOT invoke Scripts/build-release-helpers.sh — fill dist/helpers/
 # yourself when the pinned helper versions change.
 #
+# Human checklist (credentials, when to rebuild helpers, second-Mac smoke):
+#   see RELEASE.md
+#
 # Stages (unattended after preflight):
 #   1. Fail fast unless Developer ID, hover-notary, and dist/helpers/ exist
 #   2. Build + sign the release app (Scripts/build-release-app.sh)
