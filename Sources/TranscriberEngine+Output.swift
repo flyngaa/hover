@@ -44,12 +44,6 @@ extension TranscriberEngine {
             .appendingPathComponent("Transcripts")
     }
 
-    static var modelsDirectory: URL {
-        let dir = defaultOutputDirectory.appendingPathComponent("models")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }
-
     // MARK: - The current folder
 
     /// The folder from last time, used at launch to seed ``outputDirectory``.

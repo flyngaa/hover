@@ -67,3 +67,7 @@ _Avoid_: tray icon (that's Windows), status icon, indicator.
 **Agent Mode** (headless / CLI):
 Running Hover from the command line (e.g. driven by Claude Code) instead of the GUI: it starts recording immediately, stops on a duration or Ctrl-C, and prints the transcript to stdout. `--output` can point the run at a folder or a Vault. No window, no dock icon.
 _Avoid_: server mode, daemon, autotest (autotest is one legacy flag, not the concept).
+
+**Install Layout**:
+Where the Whisper helper, the speaker-tagging helper, and the model data live on this Mac. A value type that resolves presence-based from an injected bundle root and home directory: bundled helpers and Application Support model data win when present, otherwise the dev locations (Homebrew `whisper-cli`, transcripts `models/`, `diar-venv`). The Transcriber and the speaker-tagging pass both read from it; model data never follows the Output Destination.
+_Avoid_: path resolver, tool locator, bootstrap paths.
