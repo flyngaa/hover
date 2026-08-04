@@ -33,6 +33,14 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+        // Presented here rather than on the Record button so a hotkey-started
+        // recording reaches it too, whichever pane happens to be on screen.
+        .sheet(isPresented: .init(
+            get: { engine.permissionRequest != nil },
+            set: { if !$0 { engine.dismissPermissionRequest() } }
+        )) {
+            PermissionRequestSheet()
+        }
     }
 
     @ViewBuilder

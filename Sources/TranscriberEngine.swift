@@ -21,6 +21,16 @@ final class TranscriberEngine: NSObject {
     var statusMessage = "Ready"
     var authError: String?
 
+    /// Set in place of starting a recording when macOS hasn't allowed what the
+    /// user asked for. The UI shows it and answers it; see
+    /// ``recordWithReducedInput()`` and ``grantPermission()``.
+    var permissionRequest: RecordingPermissionRequest?
+
+    /// What the recording in progress is actually capturing. Differs from
+    /// ``inputSource`` when the user chose to go ahead without a permission
+    /// macOS hasn't granted — their preference is left as they set it.
+    private(set) var activeInputSource: InputSource = .both
+
     /// Which transcripts are marked in the sidebar (+ the range-selection anchor).
     /// A pure value type owns the fiddly rules; see ``Selection``.
     var selection = Selection()
@@ -120,6 +130,10 @@ final class TranscriberEngine: NSObject {
     /// tests can use an in-memory store instead of the real `UserDefaults`.
     @ObservationIgnored let settings: SettingsStore
 
+    /// What macOS allows Hover to hear. Injected so tests can drive the
+    /// permission flows without touching this Mac's real privacy settings.
+    @ObservationIgnored let permissions: RecordingPermissions
+
     /// Resolved helper and model-data locations. The Transcriber and the
     /// speaker-tagging pass both read from this so release-path changes land in
     /// one place. Injected so tests never touch the real home directory.
@@ -166,9 +180,11 @@ final class TranscriberEngine: NSObject {
         transcriptStore: TranscriptStore = FileTranscriptStore(),
         vaultFinder: VaultFinder = ObsidianVaultFinder(),
         settings: SettingsStore = UserDefaultsSettings(),
+        permissions: RecordingPermissions = SystemRecordingPermissions(),
         installLayout: InstallLayout = .current,
         modelSetup: ModelSetup? = nil
     ) {
+        self.permissions = permissions
         self.installLayout = installLayout
         // Default Transcriber shares this layout so helper/model paths can't drift.
         self.transcriber = transcriber ?? WhisperCLITranscriber(
@@ -298,9 +314,103 @@ final class TranscriberEngine: NSObject {
             return
         }
 
+        // Settle permissions before anything is cleared or started: a recording
+        // that doesn't happen shouldn't wipe the transcript on screen, and the
+        // user shouldn't be told what macOS refused while the system prompt is
+        // still on screen unanswered.
+        guard let source = await permittedInputSource(for: inputSource) else { return }
+
+        await beginRecording(using: source)
+    }
+
+    /// What Hover may actually record with, given what macOS allows.
+    ///
+    /// `nil` means the user has to answer something first: ``permissionRequest``
+    /// then holds the question, and the answer comes back through
+    /// ``recordWithReducedInput()`` or ``grantPermission()``.
+    private func permittedInputSource(for requested: InputSource) async -> InputSource? {
+        if requested != .system {
+            var microphone = permissions.microphone
+            // Worth prompting for unasked: it's the one permission an audio
+            // recorder plainly needs, and macOS applies the answer at once.
+            if microphone == .notRequested {
+                microphone = await permissions.requestMicrophone()
+            }
+            if microphone == .denied {
+                // System audio alone is still a recording worth having, but only
+                // if macOS already allows it — don't stack two permission asks.
+                let fallback: InputSource? =
+                    requested == .both && permissions.screenRecording == .granted ? .system : nil
+                await ask(.microphoneRefused, fallback: fallback)
+                return nil
+            }
+        }
+
+        if requested != .microphone {
+            // Both mode can carry on with the microphone; System mode can't.
+            let fallback: InputSource? = requested == .both ? .microphone : nil
+            switch permissions.screenRecording {
+            case .granted:
+                break
+            case .notRequested:
+                await ask(.screenRecordingNotRequested, fallback: fallback)
+                return nil
+            case .denied:
+                await ask(.screenRecordingRefused, fallback: fallback)
+                return nil
+            }
+        }
+
+        return requested
+    }
+
+    private func ask(_ reason: RecordingPermissionRequest.Reason, fallback: InputSource?) async {
+        await MainActor.run {
+            permissionRequest = RecordingPermissionRequest(reason: reason, fallback: fallback)
+        }
+    }
+
+    /// Answer a pending request by recording with what macOS does allow.
+    ///
+    /// The user's ``inputSource`` preference is deliberately left alone: this is
+    /// a decision about one recording, not a new default.
+    func recordWithReducedInput() async {
+        guard let fallback = permissionRequest?.fallback else { return }
+        await MainActor.run { permissionRequest = nil }
+        await beginRecording(using: fallback)
+    }
+
+    /// Answer a pending request by going to fix the permission — the system
+    /// prompt, or the System Settings pane. Screen Recording then moves on to
+    /// the restart macOS insists on before the grant reaches Hover.
+    func grantPermission() {
+        guard let request = permissionRequest else { return }
+        switch request.reason {
+        case .screenRecordingNotRequested:
+            permissions.requestScreenRecording()
+            permissionRequest = request.awaitingRelaunch()
+        case .screenRecordingRefused:
+            permissions.openSettings(for: .screenRecording)
+            permissionRequest = request.awaitingRelaunch()
+        case .screenRecordingNeedsRelaunch:
+            permissions.relaunch()
+        case .microphoneRefused:
+            // macOS offers its own "Quit & Reopen" when the switch is flipped,
+            // so there's nothing left for Hover to walk the user through.
+            permissions.openSettings(for: .microphone)
+            permissionRequest = nil
+        }
+    }
+
+    func dismissPermissionRequest() {
+        permissionRequest = nil
+    }
+
+    private func beginRecording(using source: InputSource) async {
         await MainActor.run {
             committedChunks = []
             authError = nil
+            activeInputSource = source
         }
         chunksTranscribed = 0
         sessionSegments = []
@@ -311,18 +421,20 @@ final class TranscriberEngine: NSObject {
         // The file is written lazily on the first committed chunk (see persistTranscript),
         // so a recording that captures no speech never leaves an empty transcript behind.
         log("Saving to: \(logURL.path)")
-        log("Input source: \(inputSource.label)")
+        log("Input source: \(source.label)")
 
         do {
             let outcome = try await audioCapture.start(
-                inputSource: inputSource,
+                inputSource: source,
                 retainFullRecording: diarizeSpeakers
             )
-            // Both mode tolerates missing system audio (keeps the mic), but the
-            // user should know why the recording is mic-only.
-            if inputSource == .both && !outcome.systemStarted {
+            // Permission was settled before we got here, so a missing system
+            // stream now is a genuine surprise — say what went wrong rather than
+            // leaving the user to wonder why the recording is half of one.
+            if source == .both && !outcome.systemStarted {
+                let reason = outcome.systemAudioFailure ?? "Hover couldn't start the system audio stream."
                 await MainActor.run {
-                    authError = "System audio couldn't be captured (Screen Recording permission is off), so Hover is recording the microphone only.\n\nTo include system audio: System Settings > Privacy & Security > Screen Recording, enable Hover, then relaunch."
+                    authError = "Hover is recording the microphone only. System audio didn't start.\n\n\(reason)"
                 }
             }
             await MainActor.run {
@@ -393,8 +505,10 @@ final class TranscriberEngine: NSObject {
     private func applyStatus(_ status: CaptureStatus) {
         guard isRecording else { return }
         var parts: [String] = []
-        if inputSource != .microphone { parts.append(status.systemActive ? "sys ✓" : "sys: waiting") }
-        if inputSource != .system { parts.append(status.micActive ? "mic ✓" : "mic: waiting") }
+        // Reads the source in use, not the preference: a recording the user
+        // agreed to run mic-only shouldn't sit at "sys: waiting" forever.
+        if activeInputSource != .microphone { parts.append(status.systemActive ? "sys ✓" : "sys: waiting") }
+        if activeInputSource != .system { parts.append(status.micActive ? "mic ✓" : "mic: waiting") }
         parts.append("chunks: \(chunksTranscribed)")
         if status.transcribing { parts.append("transcribing…") }
         statusMessage = "Recording — \(parts.joined(separator: " · "))"
