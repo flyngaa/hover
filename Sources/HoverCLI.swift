@@ -93,6 +93,7 @@ enum HoverCLI {
 
             printStatus("Recording \(durationLabel)…")
             await engine.startRecording()
+            await answerPermissionRequest()
             guard engine.isRecording else {
                 fail(engine.authError ?? "Failed to start recording.")
             }
@@ -104,6 +105,20 @@ enum HoverCLI {
 
             emitResult()
             exit(0)
+        }
+
+        /// A headless run has nobody to answer a permission dialog and no window
+        /// to put one in, so it decides for itself: say what macOS is withholding
+        /// and record with whatever is left, or give up when nothing is.
+        @MainActor
+        private func answerPermissionRequest() async {
+            guard let request = engine.permissionRequest else { return }
+            printStatus(request.consoleSummary)
+            guard let fallback = request.fallback else {
+                fail(request.title)
+            }
+            printStatus("Recording \(fallback.label.lowercased()) only.")
+            await engine.recordWithReducedInput()
         }
 
         // MARK: Setup
