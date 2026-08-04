@@ -70,6 +70,7 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
         }
 
         var systemStarted = false
+        var systemAudioFailure: String?
 
         if inputSource != .microphone {
             do {
@@ -81,6 +82,7 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
                 if inputSource == .system { throw error }
                 // Both mode: keep recording with the microphone instead of
                 // failing outright and leaving an empty transcript behind.
+                systemAudioFailure = error.localizedDescription
                 log("System audio unavailable, falling back to microphone only: \(error.localizedDescription)")
             }
         }
@@ -93,7 +95,7 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
         }
 
         await MainActor.run { self.startFlushTimer() }
-        return CaptureOutcome(systemStarted: systemStarted)
+        return CaptureOutcome(systemStarted: systemStarted, systemAudioFailure: systemAudioFailure)
     }
 
     func stop() -> [Float]? {
@@ -187,9 +189,13 @@ final class LiveAudioCapture: NSObject, AudioCapture, SCStreamDelegate, SCStream
     // MARK: - System audio (ScreenCaptureKit)
 
     private func startSystemAudio() async throws {
-        if !CGPreflightScreenCaptureAccess() && !CGRequestScreenCaptureAccess() {
+        // A backstop, not the gate: permission is settled before a recording
+        // starts (see ``RecordingPermissions``). Asking for it here would put
+        // the system prompt on screen mid-recording, and macOS wouldn't apply
+        // the answer to this launch anyway.
+        if !CGPreflightScreenCaptureAccess() {
             throw NSError(domain: "Transcriber", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "Screen Recording permission required.\n\nGo to: System Settings > Privacy & Security > Screen Recording, enable it for Hover, then relaunch."
+                NSLocalizedDescriptionKey: "Screen Recording permission is off for Hover."
             ])
         }
 

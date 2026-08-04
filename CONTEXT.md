@@ -16,6 +16,10 @@ _Avoid_: segment (reserved for a timestamped piece of transcript text), buffer.
 The thing that records system and/or microphone audio, mixes the sources, and emits ready-to-transcribe Chunks. A seam: production uses the live OS capture, tests can feed canned samples.
 _Avoid_: recorder, audio engine (that's one implementation detail).
 
+**Recording Permission**:
+Something macOS has to allow before Hover can hear: the Microphone, or Screen Recording (where macOS files system-audio capture — Hover reads the audio and never looks at the screen). A seam: production reads the real system state, tests supply canned answers. Settled before a recording starts, never during one — Hover explains what a permission buys before triggering macOS's own prompt, and offers to record with whatever is already allowed. A Screen Recording grant only reaches the *next* launch, so allowing it ends in a restart.
+_Avoid_: authorization, TCC, privacy settings (that's where the user changes one, not the concept), entitlement (that's code signing).
+
 **Chunker**:
 The rule for where one Chunk ends and the next begins — based on length and trailing silence. Pure logic, independent of how audio is captured.
 _Avoid_: splitter, buffer.
