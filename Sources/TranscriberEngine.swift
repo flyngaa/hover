@@ -96,12 +96,6 @@ final class TranscriberEngine: NSObject {
 
         /// In Both mode, how much system audio to buffer for mixing with the mic.
         static let systemMixBufferSeconds: Double = 2
-
-        // Speaker tagging (diarization). All local, no account/token needed.
-        // Paths are relative to the models directory.
-        static let diarizationVenvPython = "diar-venv/bin/python"
-        static let diarizationSegModel = "sherpa-onnx-pyannote-segmentation-3-0/model.onnx"
-        static let diarizationEmbModel = "nemo_en_titanet_small.onnx"
     }
 
     @ObservationIgnored let sampleRate = Config.sampleRate
@@ -125,6 +119,11 @@ final class TranscriberEngine: NSObject {
     /// Persists user settings (input source, tagging, output folder). Injected so
     /// tests can use an in-memory store instead of the real `UserDefaults`.
     @ObservationIgnored let settings: SettingsStore
+
+    /// Resolved helper and model-data locations. The Transcriber and the
+    /// speaker-tagging pass both read from this so release-path changes land in
+    /// one place. Injected so tests never touch the real home directory.
+    @ObservationIgnored let installLayout: InstallLayout
 
     // MARK: - Session state
     // @ObservationIgnored: mutated on background queues and never read by views.
@@ -150,13 +149,19 @@ final class TranscriberEngine: NSObject {
     static var transcriptsDir: URL { defaultOutputDirectory }
 
     init(
-        transcriber: Transcriber = WhisperCLITranscriber(log: { NSLog("[Hover] %@", $0) }),
+        transcriber: Transcriber? = nil,
         audioCapture: AudioCapture = LiveAudioCapture(log: { NSLog("[Hover] %@", $0) }),
         transcriptStore: TranscriptStore = FileTranscriptStore(),
         vaultFinder: VaultFinder = ObsidianVaultFinder(),
-        settings: SettingsStore = UserDefaultsSettings()
+        settings: SettingsStore = UserDefaultsSettings(),
+        installLayout: InstallLayout = .current
     ) {
-        self.transcriber = transcriber
+        self.installLayout = installLayout
+        // Default Transcriber shares this layout so helper/model paths can't drift.
+        self.transcriber = transcriber ?? WhisperCLITranscriber(
+            layout: installLayout,
+            log: { NSLog("[Hover] %@", $0) }
+        )
         self.audioCapture = audioCapture
         self.transcriptStore = transcriptStore
         self.vaultFinder = vaultFinder

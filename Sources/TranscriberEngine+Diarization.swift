@@ -9,14 +9,15 @@ extension TranscriberEngine {
 
     // MARK: - Tooling locations
 
+    /// Paths come from ``installLayout`` so the Transcriber and this pass agree.
     var diarizationPython: String {
-        Self.modelsDirectory.appendingPathComponent(Config.diarizationVenvPython).path
+        installLayout.speakerTaggingHelper.path
     }
     var diarizationSegModelPath: String {
-        Self.modelsDirectory.appendingPathComponent(Config.diarizationSegModel).path
+        installLayout.segmentationModel.path
     }
     var diarizationEmbModelPath: String {
-        Self.modelsDirectory.appendingPathComponent(Config.diarizationEmbModel).path
+        installLayout.embeddingModel.path
     }
     var diarizationScriptPath: String? {
         Bundle.main.path(forResource: "diarize", ofType: "py")
