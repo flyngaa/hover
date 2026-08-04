@@ -36,6 +36,19 @@ mv "$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 [ -f Obsidian.svg ] && cp Obsidian.svg "$APP_BUNDLE/Contents/Resources/Obsidian.svg"
 cp Scripts/diarize.py "$APP_BUNDLE/Contents/Resources/diarize.py"
 
+# When the releaser (or a developer) has built helpers into dist/helpers/, copy
+# them into the local bundle so InstallLayout takes the same presence-based
+# path a release build would. Absent cache → no change to the Homebrew / diar-venv
+# day-to-day loop.
+if [ -d dist/helpers ] \
+    && [ -x dist/helpers/whisper-cli ] \
+    && [ -x dist/helpers/sherpa-onnx-offline-speaker-diarization ] \
+    && compgen -G "dist/helpers/libonnxruntime*.dylib" >/dev/null; then
+    echo "Copying release helpers from dist/helpers/ into $APP_BUNDLE/Contents/Helpers/"
+    mkdir -p "$APP_BUNDLE/Contents/Helpers"
+    cp -R dist/helpers/. "$APP_BUNDLE/Contents/Helpers/"
+fi
+
 cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
