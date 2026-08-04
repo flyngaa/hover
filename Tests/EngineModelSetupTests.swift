@@ -18,6 +18,7 @@ import Foundation
             transcriptStore: FakeTranscriptStore(),
             vaultFinder: FakeVaultFinder(),
             settings: settings,
+            permissions: FakeRecordingPermissions(),
             modelSetup: modelSetup
         )
     }

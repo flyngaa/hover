@@ -11,6 +11,13 @@ struct CaptureStatus {
 /// messaging (e.g. "recording mic only" when system audio couldn't start).
 struct CaptureOutcome {
     let systemStarted: Bool
+    /// Why system audio didn't start, when the recording carried on without it.
+    let systemAudioFailure: String?
+
+    init(systemStarted: Bool, systemAudioFailure: String? = nil) {
+        self.systemStarted = systemStarted
+        self.systemAudioFailure = systemAudioFailure
+    }
 }
 
 /// Captures audio and emits ready-to-transcribe chunks.
