@@ -70,6 +70,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
     <string>13.0</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Hover needs microphone access to transcribe audio.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Hover needs Screen Recording access to capture system and app audio for transcription.</string>
     <key>NSSupportsAutomaticTermination</key>
     <false/>
 </dict>

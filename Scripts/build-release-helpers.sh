@@ -2,8 +2,9 @@
 # Build (or fetch + prepare) the Mach-Os that a release Hover.app carries in
 # Contents/Helpers. Output lands in the gitignored cache dist/helpers/.
 #
-# Companion to ./release.sh — that script never invokes this one. Re-run when
-# the pinned whisper.cpp or sherpa-onnx versions below change.
+# Companion to Scripts/build-release-app.sh / ./release.sh — those scripts never
+# invoke this one. Re-run when the pinned whisper.cpp or sherpa-onnx versions
+# below change.
 #
 # Produces:
 #   dist/helpers/whisper-cli
