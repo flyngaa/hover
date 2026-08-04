@@ -13,6 +13,18 @@ import AppKit
 /// dying early throws the whole recording away.
 enum HoverCLI {
 
+    /// Stderr message when Agent Mode is started without model data. Tells the
+    /// user to open the GUI once rather than hanging on an invisible download.
+    static let modelDataMissingMessage =
+        "Model data isn't set up yet. Open Hover once to download "
+        + "about 600 MB of models, then try again."
+
+    /// `nil` when Agent Mode may proceed; otherwise the stderr message to print
+    /// before exiting non-zero. Never starts a download.
+    static func modelDataMissingReason(for engine: TranscriberEngine) -> String? {
+        engine.modelSetup.isComplete ? nil : modelDataMissingMessage
+    }
+
     /// Entry point from `main`. Never returns (drives the AppKit run loop, then
     /// exits from inside the delegate).
     static func run(_ options: CLIOptions) -> Never {
@@ -66,6 +78,12 @@ enum HoverCLI {
         @MainActor
         private func execute() async {
             applyOverrides()
+
+            // Agent Mode never runs setup — a missing model tree fails fast so a
+            // script doesn't hang on an invisible 600 MB download.
+            if let reason = HoverCLI.modelDataMissingReason(for: engine) {
+                fail(reason)
+            }
 
             // The only visible sign of a headless run: without it there's nothing
             // on screen to say the Mac is listening. It lives as long as the run.
