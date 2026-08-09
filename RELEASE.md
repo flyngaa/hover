@@ -61,7 +61,7 @@ git push origin v1.2.3
 
 The tag's version without `v` becomes both `CFBundleShortVersionString` and `CFBundleVersion`. No branch push, scheduled job, local script, or manual Actions dispatch publishes a Release.
 
-When the workflow succeeds, it publishes `Hover.dmg` at GitHub Releases and commits the matching version and SHA-256 to the personal tap. The published install command is:
+The workflow serializes release tags, prepares a draft Release, commits the matching version and SHA-256 to the personal tap, and only then publishes the Release. A failed run leaves the Release as a reusable draft, so rerunning the same tag can finish without leaving a public Release whose tap bump is missing. It refuses to move the tap backward to an older version. The published install command is:
 
 ```bash
 brew install --cask flyngaa/tap/hover
