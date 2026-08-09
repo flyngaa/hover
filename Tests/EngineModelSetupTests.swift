@@ -161,6 +161,8 @@ import Foundation
         let reason = HoverCLI.modelDataMissingReason(for: engine)
 
         #expect(reason == HoverCLI.modelDataMissingMessage)
+        #expect(reason?.contains("hover setup") == true)
+        #expect(reason?.contains("Open Hover") == false)
         #expect(setup.fetchCount == 0)
     }
 

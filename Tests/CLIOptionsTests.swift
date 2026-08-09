@@ -21,6 +21,17 @@ import Testing
         #expect(CLIOptions.parse(["-r"]).isCLI)
     }
 
+    @Test func setupCommandsSelectModelSetupWithoutRecordOptions() {
+        #expect(CLIOptions.parse(["setup"]).command == .setup(statusOnly: false))
+        #expect(CLIOptions.parse(["setup", "--status"]).command == .setup(statusOnly: true))
+    }
+
+    @Test func setupRejectsEveryOtherFlagOrSubcommand() {
+        #expect(CLIOptions.parse(["setup", "--force"]).command == .invalid)
+        #expect(CLIOptions.parse(["setup", "status"]).command == .invalid)
+        #expect(CLIOptions.parse(["setup", "--status", "--json"]).command == .invalid)
+    }
+
     @Test func duration() {
         #expect(CLIOptions.parse(["record", "--duration", "30"]).duration == 30)
         #expect(CLIOptions.parse(["-d", "15"]).duration == 15)
