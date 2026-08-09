@@ -1,6 +1,20 @@
 # Cutting a Hover release
 
-Day-to-day work stays on `./build.sh`. Releases are laptop-only for v1: credentials live in the release Mac’s Keychain, and the helper cache is local. Nothing secret belongs in git.
+Day-to-day work stays on `./build.sh`. A human-pushed `vMAJOR.MINOR.PATCH` tag is the only publish trigger: GitHub Actions builds on an Apple Silicon `macos-15` runner, notarizes `Hover.dmg`, publishes the GitHub Release, and updates the `flyngaa/homebrew-tap` cask. Nothing secret belongs in git.
+
+`./release.sh` remains a local production-build smoke path. It can build the same notarized DMG on the release Mac, but it never creates a GitHub Release or updates the personal tap.
+
+## GitHub Actions secrets (repository setup)
+
+Configure these secrets before pushing the first release tag:
+
+- `DEVELOPER_ID_P12_BASE64`: base64-encoded Developer ID Application `.p12`
+- `DEVELOPER_ID_P12_PASSWORD`: password for that `.p12`
+- `ASC_API_KEY_P8_BASE64`: base64-encoded App Store Connect API key
+- `ASC_API_KEY_ID` and `ASC_API_ISSUER_ID`: identifiers for that API key
+- `HOMEBREW_TAP_TOKEN`: token with contents write access to `flyngaa/homebrew-tap`
+
+The workflow writes credentials only into the runner's temporary directory and a temporary Keychain, then removes them in an `always()` cleanup step. The coding Mac does not need release credentials.
 
 ## One-time setup (human)
 
@@ -36,9 +50,26 @@ Do this once on the Mac that will cut releases. Re-do only when the identity or 
 
 Re-run it when the pinned whisper.cpp or sherpa-onnx versions in that script change, or when `dist/helpers/` is missing or incomplete. Ordinary releases do **not** rebuild helpers: `./release.sh` never invokes the cache script, and fails fast if the cache is absent.
 
-## Cut the DMG
+## Publish from a tag
 
-On an Apple Silicon Mac, from a clean checkout with the one-time setup and helper cache in place:
+After the intended commit is on the branch to release, a human creates and pushes an exact semantic-version tag:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+The tag's version without `v` becomes both `CFBundleShortVersionString` and `CFBundleVersion`. No branch push, scheduled job, local script, or manual Actions dispatch publishes a Release.
+
+When the workflow succeeds, it publishes `Hover.dmg` at GitHub Releases and commits the matching version and SHA-256 to the personal tap. The published install command is:
+
+```bash
+brew install --cask flyngaa/tap/hover
+```
+
+## Build a local smoke DMG
+
+On an Apple Silicon release Mac, from a clean checkout with the one-time setup and helper cache in place:
 
 ```bash
 ./release.sh
@@ -56,7 +87,7 @@ Then confirm the staple on the release Mac:
 xcrun stapler validate dist/Hover.dmg
 ```
 
-Share only after the second-Mac smoke below passes. A DMG that works on the machine that built it is not proof under Gatekeeper.
+This output is for production-build smoke only; do not upload it as a Release. Share the tag workflow's DMG only after the second-Mac smoke below passes. A DMG that works on the machine that built it is not proof under Gatekeeper.
 
 ## Second-Mac Gatekeeper and first-launch smoke
 
