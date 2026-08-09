@@ -5,15 +5,26 @@ import Foundation
 ///
 /// One place answers all three, so the Transcriber and the speaker-tagging pass
 /// never each invent their own paths. Resolution is **presence-based** from an
-/// injected bundle root and home directory: a helper inside the app bundle and a
-/// populated Application Support model directory win when they exist; otherwise
-/// the dev locations (Homebrew `whisper-cli`, the transcripts `models/` folder,
-/// `diar-venv`) are used. Release builds always ship the helpers, so they always
-/// take the release path — nothing branches on build flavour.
+/// injected bundle root and home directory: the presence of `Contents/Helpers`
+/// selects the shipped layout, while its absence selects the dev locations
+/// (Homebrew `whisper-cli`, the transcripts `models/` folder, `diar-venv`). A
+/// shipped layout must contain every helper or resolution fails immediately.
+/// Nothing branches on build flavour.
 ///
 /// Bundle root and home are injected so tests never touch the real Application
 /// Support folder or the developer's home. Production uses ``current``.
 struct InstallLayout: Equatable {
+
+    enum ResolutionError: LocalizedError, Equatable {
+        case incompleteShippedHelpers
+
+        var errorDescription: String? {
+            switch self {
+            case .incompleteShippedHelpers:
+                return "Hover's shipped helpers are incomplete. Reinstall Hover."
+            }
+        }
+    }
 
     /// Absolute path to `whisper-cli` (bundled helper, or Homebrew on the dev path).
     let whisperHelper: URL
@@ -60,15 +71,25 @@ struct InstallLayout: Equatable {
     private static let bundledWhisperRelativePath = "Contents/Helpers/whisper-cli"
     private static let bundledSpeakerTaggingRelativePath =
         "Contents/Helpers/sherpa-onnx-offline-speaker-diarization"
+    private static let bundledHelpersRelativePath = "Contents/Helpers"
+    private static let bundledONNXRuntimeFileName = "libonnxruntime.1.27.0.dylib"
+    private static let bundledONNXRuntimeDirectories = [
+        "Contents/Frameworks",
+        "Contents/Helpers",
+    ]
 
     // MARK: - Resolution
 
     /// Production layout for this process's bundle and the current user's home.
     static var current: InstallLayout {
-        resolve(
-            bundleRoot: Bundle.main.bundleURL,
-            homeDirectory: FileManager.default.homeDirectoryForCurrentUser
-        )
+        do {
+            return try resolve(
+                bundleRoot: Bundle.main.bundleURL,
+                homeDirectory: FileManager.default.homeDirectoryForCurrentUser
+            )
+        } catch {
+            fatalError(error.localizedDescription)
+        }
     }
 
     /// Resolve helpers and model-data locations from injected roots.
@@ -76,15 +97,37 @@ struct InstallLayout: Equatable {
         bundleRoot: URL,
         homeDirectory: URL,
         fileManager: FileManager = .default
-    ) -> InstallLayout {
+    ) throws -> InstallLayout {
+        let bundledHelpers = bundleRoot.appendingPathComponent(bundledHelpersRelativePath)
         let bundledWhisper = bundleRoot.appendingPathComponent(bundledWhisperRelativePath)
         let bundledSpeakerTagging = bundleRoot
             .appendingPathComponent(bundledSpeakerTaggingRelativePath)
 
-        let hasBundledWhisper = fileManager.isExecutableFile(atPath: bundledWhisper.path)
-        let hasBundledSpeakerTagging = fileManager.isExecutableFile(
-            atPath: bundledSpeakerTagging.path
-        )
+        let hasBundledWhisper = regularFileExists(at: bundledWhisper, fileManager: fileManager)
+            && fileManager.isExecutableFile(atPath: bundledWhisper.path)
+        let hasBundledSpeakerTagging = regularFileExists(
+            at: bundledSpeakerTagging,
+            fileManager: fileManager
+        ) && fileManager.isExecutableFile(atPath: bundledSpeakerTagging.path)
+        var helpersIsDirectory: ObjCBool = false
+        let hasHelpersDirectory = fileManager.fileExists(
+            atPath: bundledHelpers.path,
+            isDirectory: &helpersIsDirectory
+        ) && helpersIsDirectory.boolValue
+        let hasONNXRuntime = bundledONNXRuntimeDirectories.contains { directory in
+            regularFileExists(
+                at: bundleRoot
+                    .appendingPathComponent(directory)
+                    .appendingPathComponent(bundledONNXRuntimeFileName),
+                fileManager: fileManager
+            )
+        }
+
+        if hasHelpersDirectory
+            && !(hasBundledWhisper && hasBundledSpeakerTagging && hasONNXRuntime)
+        {
+            throw ResolutionError.incompleteShippedHelpers
+        }
 
         let appSupportModels = homeDirectory
             .appendingPathComponent("Library")
@@ -96,22 +139,9 @@ struct InstallLayout: Equatable {
             .appendingPathComponent("Transcripts")
             .appendingPathComponent("models")
 
-        let appSupportPopulated = modelFilePresent(
-            named: ggmlModelFileName, under: appSupportModels, fileManager: fileManager
-        ) || modelFilePresent(
-            named: segmentationModelRelativePath, under: appSupportModels,
-            fileManager: fileManager
-        ) || modelFilePresent(
-            named: embeddingModelFileName, under: appSupportModels, fileManager: fileManager
-        )
-
-        // Bundled helpers mean the release layout, including an (possibly still
-        // empty) Application Support models directory that first-launch setup
-        // will fill. A populated Application Support directory also wins on its
-        // own, so reinstalling over existing model data keeps using it.
-        let useReleaseModels = hasBundledWhisper || hasBundledSpeakerTagging
-            || appSupportPopulated
-        let modelsDirectory = useReleaseModels ? appSupportModels : transcriptsModels
+        // The Helpers directory is the sole ship signal. Existing Application
+        // Support model data must not pull a dev build onto the shipped layout.
+        let modelsDirectory = hasHelpersDirectory ? appSupportModels : transcriptsModels
 
         let whisperHelper = hasBundledWhisper
             ? bundledWhisper
@@ -147,5 +177,12 @@ struct InstallLayout: Equatable {
         fileManager.fileExists(
             atPath: directory.appendingPathComponent(relativePath).path
         )
+    }
+
+    private static func regularFileExists(at url: URL, fileManager: FileManager) -> Bool {
+        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else {
+            return false
+        }
+        return attributes[.type] as? FileAttributeType == .typeRegular
     }
 }
