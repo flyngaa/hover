@@ -17,5 +17,6 @@ transcript_*.txt
 # macOS finder metadata
 .DS_Store
 
-# specs
+# Agentic development
 .scratch/
+.agents/
