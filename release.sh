@@ -1,7 +1,8 @@
 #!/bin/bash
-# Cut a notarized, stapled dist/Hover.dmg from a clean checkout.
+# Build a notarized, stapled dist/Hover.dmg from a clean checkout.
 #
-# Single release entrypoint. Day-to-day work stays on ./build.sh.
+# Local production smoke entrypoint. Day-to-day work stays on ./build.sh, and
+# only the tag workflow publishes GitHub Releases or updates the personal tap.
 # Does NOT invoke Scripts/build-release-helpers.sh — fill dist/helpers/
 # yourself when the pinned helper versions change.
 #
@@ -28,6 +29,9 @@ cd "$ROOT"
 APP_NAME="Hover"
 SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Antoine Valente (ALHP6856UK)}"
 NOTARY_PROFILE="hover-notary"
+NOTARY_KEY="${NOTARY_KEY:-}"
+NOTARY_KEY_ID="${NOTARY_KEY_ID:-}"
+NOTARY_ISSUER_ID="${NOTARY_ISSUER_ID:-}"
 HELPERS_CACHE="$ROOT/dist/helpers"
 RELEASE_APP="$ROOT/dist/release/$APP_NAME.app"
 DMG_PATH="$ROOT/dist/$APP_NAME.dmg"
@@ -68,10 +72,26 @@ require_signing_identity() {
         || die "signing identity not found: $SIGN_IDENTITY"
 }
 
-# Confirm the Keychain profile exists and can authenticate before we build.
-require_notary_profile() {
-    if ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
-        die "notary Keychain profile '$NOTARY_PROFILE' missing or unusable — run: xcrun notarytool store-credentials $NOTARY_PROFILE"
+# CI supplies an App Store Connect API key directly. Local smoke keeps using
+# the release Mac's hover-notary Keychain profile.
+configure_notary_credentials() {
+    if [[ -n "$NOTARY_KEY" || -n "$NOTARY_KEY_ID" || -n "$NOTARY_ISSUER_ID" ]]; then
+        [[ -f "$NOTARY_KEY" ]] || die "NOTARY_KEY must point to an App Store Connect API key"
+        [[ -n "$NOTARY_KEY_ID" ]] || die "NOTARY_KEY_ID is required with NOTARY_KEY"
+        [[ -n "$NOTARY_ISSUER_ID" ]] || die "NOTARY_ISSUER_ID is required with NOTARY_KEY"
+        NOTARY_ARGS=(
+            --key "$NOTARY_KEY"
+            --key-id "$NOTARY_KEY_ID"
+            --issuer "$NOTARY_ISSUER_ID"
+        )
+        NOTARY_LABEL="App Store Connect API key"
+    else
+        NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
+        NOTARY_LABEL="profile $NOTARY_PROFILE"
+    fi
+
+    if ! xcrun notarytool history "${NOTARY_ARGS[@]}" >/dev/null 2>&1; then
+        die "notary credentials are missing or unusable ($NOTARY_LABEL)"
     fi
 }
 
@@ -121,10 +141,10 @@ notarize_dmg() {
     local submit_out submit_status submission_id
     require_cmd xcrun
 
-    echo "==> Submitting $DMG_PATH to notarytool (profile $NOTARY_PROFILE)"
+    echo "==> Submitting $DMG_PATH to notarytool ($NOTARY_LABEL)"
     set +e
     submit_out="$(xcrun notarytool submit "$DMG_PATH" \
-        --keychain-profile "$NOTARY_PROFILE" \
+        "${NOTARY_ARGS[@]}" \
         --wait 2>&1)"
     submit_status=$?
     set -e
@@ -137,7 +157,7 @@ notarize_dmg() {
         if [[ -n "$submission_id" ]]; then
             echo "==> Fetching notarization log for $submission_id" >&2
             xcrun notarytool log "$submission_id" \
-                --keychain-profile "$NOTARY_PROFILE" >&2 || true
+                "${NOTARY_ARGS[@]}" >&2 || true
         else
             echo "error: could not parse submission id from notarytool output" >&2
         fi
@@ -176,7 +196,7 @@ fi
 
 if [[ "$SKIP_NOTARIZE" != "1" ]]; then
     require_cmd xcrun
-    require_notary_profile
+    configure_notary_credentials
 else
     echo "note: SKIP_NOTARIZE=1 — will stop after building the DMG"
 fi

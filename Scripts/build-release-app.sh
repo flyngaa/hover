@@ -27,6 +27,7 @@ cd "$ROOT"
 
 APP_NAME="Hover"
 BUNDLE_ID="com.hover.desktop"
+APP_VERSION="${APP_VERSION:-1.0.0}"
 # Common name; resolved to a unique 40-char hash before codesign (see
 # require_signing_identity). Override with SIGN_IDENTITY=<hash> when needed.
 SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Antoine Valente (ALHP6856UK)}"
@@ -105,6 +106,11 @@ require_entitlements() {
     fi
     grep -q 'com.apple.security.device.audio-input' "$ENTITLEMENTS" \
         || die "entitlements missing com.apple.security.device.audio-input"
+}
+
+require_app_version() {
+    [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+        || die "APP_VERSION must be MAJOR.MINOR.PATCH (found $APP_VERSION)"
 }
 
 helper_rpaths() {
@@ -193,6 +199,7 @@ require_cmd otool
 require_cmd plutil
 require_helpers_cache
 require_entitlements
+require_app_version
 [[ -f "$ROOT/ThirdPartyLicenses.txt" ]] \
     || die "missing ThirdPartyLicenses.txt at repo root"
 
@@ -230,6 +237,8 @@ mv "$ROOT/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 [ -f Moth.svg ] && cp Moth.svg "$APP_BUNDLE/Contents/Resources/Moth.svg"
 [ -f Obsidian.svg ] && cp Obsidian.svg "$APP_BUNDLE/Contents/Resources/Obsidian.svg"
 cp Scripts/diarize.py "$APP_BUNDLE/Contents/Resources/diarize.py"
+cp Scripts/hover "$APP_BUNDLE/Contents/Resources/hover"
+chmod +x "$APP_BUNDLE/Contents/Resources/hover"
 cp ThirdPartyLicenses.txt "$APP_BUNDLE/Contents/Resources/ThirdPartyLicenses.txt"
 
 # Nested Mach-Os belong in Helpers / Frameworks — never Resources.
@@ -246,7 +255,7 @@ chmod +x \
 prepare_sherpa_frameworks_rpath \
     "$APP_BUNDLE/Contents/Helpers/sherpa-onnx-offline-speaker-diarization"
 
-cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
+cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -262,7 +271,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>$APP_VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$APP_VERSION</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSMicrophoneUsageDescription</key>

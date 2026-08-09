@@ -4,6 +4,7 @@
 # Built app bundle / binary from build.sh
 Hover.app/
 Hover
+!Scripts/hover
 
 # Release artifacts and cached helper binaries (never commit Mach-Os)
 dist/
@@ -17,5 +18,6 @@ transcript_*.txt
 # macOS finder metadata
 .DS_Store
 
-# specs
+# Agentic development
 .scratch/
+.agents/

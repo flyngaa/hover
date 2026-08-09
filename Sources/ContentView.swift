@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(TranscriberEngine.self) private var engine
+    @State private var offerInstallCLIAfterSetup = false
 
     var body: some View {
         Group {
@@ -13,6 +14,14 @@ struct ContentView: View {
         }
         .tint(BrandColors.orange)
         .background(HideWindowTitle())
+        .onChange(of: engine.modelSetupStatus) { previous, current in
+            if previous != .notNeeded, current == .notNeeded {
+                offerInstallCLIAfterSetup = true
+            }
+        }
+        .sheet(isPresented: $offerInstallCLIAfterSetup) {
+            InstallCLIView(isOnboarding: true)
+        }
     }
 
     private var appContent: some View {

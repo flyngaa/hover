@@ -1,5 +1,12 @@
 import Foundation
 
+enum CLICommand: Equatable {
+    case gui
+    case record
+    case setup(statusOnly: Bool)
+    case invalid
+}
+
 /// Parsed command-line options that let Hover run headlessly for agents/scripts
 /// (e.g. from Claude Code) instead of opening the GUI.
 ///
@@ -7,8 +14,10 @@ import Foundation
 /// without launching an app. See ``HoverCLI`` for the runner that acts on these.
 struct CLIOptions: Equatable {
 
+    var command: CLICommand = .gui
+
     /// True when any CLI flag was passed; the app runs headless instead of GUI.
-    var isCLI = false
+    var isCLI: Bool { command != .gui || help }
 
     /// Record length in seconds. `nil` means record until interrupted (Ctrl-C).
     var duration: Double?
@@ -31,6 +40,28 @@ struct CLIOptions: Equatable {
 
     static func parse(_ args: [String]) -> CLIOptions {
         var options = CLIOptions()
+
+        if args.first == "setup" {
+            switch Array(args.dropFirst()) {
+            case []:
+                options.command = .setup(statusOnly: false)
+            case ["--status"]:
+                options.command = .setup(statusOnly: true)
+            default:
+                options.command = .invalid
+            }
+            return options
+        }
+
+        let recordArguments: Set<String> = [
+            "record", "--record", "-r", "--duration", "--seconds", "-d",
+            "--output", "-o", "--source", "--input", "--tag-speakers",
+            "--no-tag-speakers", "--json",
+        ]
+        if args.contains(where: recordArguments.contains) {
+            options.command = .record
+        }
+
         var index = 0
 
         func value() -> String? {
@@ -41,43 +72,36 @@ struct CLIOptions: Equatable {
         while index < args.count {
             switch args[index] {
             case "record", "--record", "-r":
-                options.isCLI = true
+                break
 
             case "--duration", "--seconds", "-d":
-                options.isCLI = true
                 if let raw = value(), let seconds = Double(raw) {
                     options.duration = seconds
                     index += 1
                 }
 
             case "--output", "-o":
-                options.isCLI = true
                 if let raw = value() {
                     options.output = raw
                     index += 1
                 }
 
             case "--source", "--input":
-                options.isCLI = true
                 if let raw = value(), let source = InputSource(rawValue: raw) {
                     options.inputSource = source
                     index += 1
                 }
 
             case "--tag-speakers":
-                options.isCLI = true
                 options.tagSpeakers = true
 
             case "--no-tag-speakers":
-                options.isCLI = true
                 options.tagSpeakers = false
 
             case "--json":
-                options.isCLI = true
                 options.json = true
 
             case "--help", "-h":
-                options.isCLI = true
                 options.help = true
 
             default:
@@ -95,6 +119,7 @@ struct CLIOptions: Equatable {
 
     USAGE:
       hover record [options]
+      hover setup [--status]
 
     OPTIONS:
       -d, --duration <sec>   Record for this many seconds, then stop.
@@ -105,6 +130,7 @@ struct CLIOptions: Equatable {
           --source <both|system|microphone>   Which audio to record.
           --tag-speakers / --no-tag-speakers  Force speaker labelling on/off.
           --json             Print the result as JSON.
+          --status           Report whether Model Setup is complete without downloading.
       -h, --help             Show this help.
 
     EXAMPLES:
@@ -112,5 +138,7 @@ struct CLIOptions: Equatable {
       hover record --output ~/Desktop
       hover record --output "My Notes"   # an Obsidian vault
       hover record            # records until Ctrl-C, then transcribes
+      hover setup             # downloads missing model data
+      hover setup --status    # checks Model Setup without downloading
     """
 }
