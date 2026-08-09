@@ -1,6 +1,21 @@
 import Foundation
 import AppKit
 
+struct CLIProcessResult: Equatable {
+    let exitCode: Int32
+    let standardError: String
+}
+
+enum CLISetupAction: Equatable {
+    case fetch
+    case finish(CLIProcessResult)
+}
+
+struct CLIOutput {
+    let standardOutput: @Sendable (String) -> Void
+    let standardError: @Sendable (String) -> Void
+}
+
 /// Runs Hover headlessly for agent / command-line use: start recording right
 /// away, stop on a duration or Ctrl-C, print the transcript to stdout, and exit.
 ///
@@ -13,11 +28,90 @@ import AppKit
 /// dying early throws the whole recording away.
 enum HoverCLI {
 
-    /// Stderr message when Agent Mode is started without model data. Tells the
-    /// user to open the GUI once rather than hanging on an invisible download.
+    private static let modelDataReadyResult = CLIProcessResult(
+        exitCode: 0,
+        standardError: "Model data is ready.\n"
+    )
+
+    static func setupAction(isComplete: Bool, statusOnly: Bool) -> CLISetupAction {
+        if isComplete {
+            return .finish(modelDataReadyResult)
+        }
+        if statusOnly {
+            return .finish(CLIProcessResult(
+                exitCode: 1,
+                standardError: "Model data is missing. Run `hover setup` to download about 600 MB.\n"
+            ))
+        }
+        return .fetch
+    }
+
+    static func setupCompletion(
+        isComplete: Bool,
+        errorDescription: String?
+    ) -> CLIProcessResult {
+        if isComplete {
+            return modelDataReadyResult
+        }
+        let message = errorDescription ?? "Downloaded model data is incomplete."
+        return CLIProcessResult(
+            exitCode: 1,
+            standardError: "Model Setup failed: \(message)\n"
+        )
+    }
+
+    /// Executes only setup-related routes. Returning `nil` leaves record/GUI
+    /// routing to the caller. Model Setup and process streams are injected so
+    /// tests exercise the same fetch and output path as Agent Mode.
+    static func executeSetup(
+        _ options: CLIOptions,
+        modelSetup: ModelSetup,
+        output: CLIOutput
+    ) async -> Int32? {
+        let statusOnly: Bool
+        switch options.command {
+        case .setup(let requestedStatusOnly):
+            statusOnly = requestedStatusOnly
+        case .invalid:
+            output.standardError(
+                "Error: Unsupported setup option. Use `hover setup` or `hover setup --status`.\n"
+            )
+            return 1
+        case .gui, .record:
+            return nil
+        }
+
+        switch setupAction(isComplete: modelSetup.isComplete, statusOnly: statusOnly) {
+        case .finish(let result):
+            output.standardError(result.standardError)
+            return result.exitCode
+        case .fetch:
+            output.standardError("• Downloading model data…\n")
+        }
+
+        var fetchError: String?
+        do {
+            try await modelSetup.fetchMissing { fraction in
+                let percent = Int((fraction * 100).rounded())
+                output.standardError("• Model Setup: \(percent)%\n")
+            }
+        } catch {
+            fetchError = error.localizedDescription
+        }
+
+        let result = setupCompletion(
+            isComplete: modelSetup.isComplete,
+            errorDescription: fetchError
+        )
+        output.standardError(result.standardError)
+        return result.exitCode
+    }
+
+    /// Stderr message when recording is started without model data. Points at
+    /// Model Setup rather than hanging on an invisible download.
     static let modelDataMissingMessage =
-        "Model data isn't set up yet. Open Hover once to download "
-        + "about 600 MB of models, then try again."
+        "Model data isn't set up yet. Run `hover setup` to download "
+        + "about 600 MB of models, then try `hover record` again."
 
     /// `nil` when Agent Mode may proceed; otherwise the stderr message to print
     /// before exiting non-zero. Never starts a download.
@@ -77,6 +171,18 @@ enum HoverCLI {
 
         @MainActor
         private func execute() async {
+            let output = CLIOutput(
+                standardOutput: { print($0, terminator: "") },
+                standardError: { text in HoverCLI.writeToStandardError(text) }
+            )
+            if let exitCode = await HoverCLI.executeSetup(
+                options,
+                modelSetup: engine.modelSetup,
+                output: output
+            ) {
+                exit(exitCode)
+            }
+
             applyOverrides()
 
             // Agent Mode never runs setup — a missing model tree fails fast so a
@@ -287,21 +393,21 @@ enum HoverCLI {
         /// Status/progress lines go to stderr so stdout stays clean for the
         /// transcript (which an agent will capture).
         private func printStatus(_ message: String) {
-            writeToStandardError("• " + message + "\n")
+            HoverCLI.writeToStandardError("• " + message + "\n")
         }
 
         private func fail(_ message: String) -> Never {
-            writeToStandardError("Error: " + message + "\n")
+            HoverCLI.writeToStandardError("Error: " + message + "\n")
             exit(1)
         }
 
-        /// Uses `write(2)` rather than `FileHandle`, which raises an exception when
-        /// the far end has gone away — and the terminal that started a long recording
-        /// often has by the time we report on it. Nobody is reading, so a dropped
-        /// line costs nothing; being killed here would cost the whole recording.
-        private func writeToStandardError(_ text: String) {
-            let bytes = Array(text.utf8)
-            _ = bytes.withUnsafeBufferPointer { write(STDERR_FILENO, $0.baseAddress, $0.count) }
-        }
+    }
+
+    /// Uses `write(2)` rather than `FileHandle`, which raises an exception when
+    /// the far end has gone away. It is also safe to call from Model Setup's
+    /// progress callback without routing output through stdout.
+    private static func writeToStandardError(_ text: String) {
+        let bytes = Array(text.utf8)
+        _ = bytes.withUnsafeBufferPointer { write(STDERR_FILENO, $0.baseAddress, $0.count) }
     }
 }
