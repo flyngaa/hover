@@ -230,6 +230,8 @@ mv "$ROOT/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 [ -f Moth.svg ] && cp Moth.svg "$APP_BUNDLE/Contents/Resources/Moth.svg"
 [ -f Obsidian.svg ] && cp Obsidian.svg "$APP_BUNDLE/Contents/Resources/Obsidian.svg"
 cp Scripts/diarize.py "$APP_BUNDLE/Contents/Resources/diarize.py"
+cp Scripts/hover "$APP_BUNDLE/Contents/Resources/hover"
+chmod +x "$APP_BUNDLE/Contents/Resources/hover"
 cp ThirdPartyLicenses.txt "$APP_BUNDLE/Contents/Resources/ThirdPartyLicenses.txt"
 
 # Nested Mach-Os belong in Helpers / Frameworks — never Resources.
