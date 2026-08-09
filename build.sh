@@ -35,6 +35,8 @@ mv "$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 [ -f Moth.svg ] && cp Moth.svg "$APP_BUNDLE/Contents/Resources/Moth.svg"
 [ -f Obsidian.svg ] && cp Obsidian.svg "$APP_BUNDLE/Contents/Resources/Obsidian.svg"
 cp Scripts/diarize.py "$APP_BUNDLE/Contents/Resources/diarize.py"
+cp Scripts/hover "$APP_BUNDLE/Contents/Resources/hover"
+chmod +x "$APP_BUNDLE/Contents/Resources/hover"
 
 # When the releaser (or a developer) has built helpers into dist/helpers/, copy
 # them into the local bundle so InstallLayout takes the same presence-based

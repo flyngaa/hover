@@ -19,6 +19,10 @@ struct TranscriberApp: App {
                 }
         }
         .defaultSize(width: 860, height: 560)
+
+        Settings {
+            InstallCLIView(isOnboarding: false)
+        }
     }
 
     /// Clicking the moth brings Hover back to the front — handy once the window

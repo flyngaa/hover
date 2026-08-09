@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Homebrew links this in-bundle wrapper onto PATH. Resolve that symlink back
+# into Hover.app before launching the Mach-O so macOS constructs Bundle.main
+# from the app bundle and Install Layout can see Contents/Helpers.
+wrapper_path=$0
+while [ -L "$wrapper_path" ]; do
+    wrapper_directory=$(CDPATH= cd -P "$(dirname "$wrapper_path")" && pwd)
+    link_target=$(readlink "$wrapper_path")
+    case "$link_target" in
+        /*) wrapper_path=$link_target ;;
+        *) wrapper_path=$wrapper_directory/$link_target ;;
+    esac
+done
+
+wrapper_directory=$(CDPATH= cd -P "$(dirname "$wrapper_path")" && pwd)
+exec "$wrapper_directory/../MacOS/Hover" "$@"
