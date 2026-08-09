@@ -89,9 +89,11 @@ xcrun stapler validate dist/Hover.dmg
 
 This output is for production-build smoke only; do not upload it as a Release. Share the tag workflow's DMG only after the second-Mac smoke below passes. A DMG that works on the machine that built it is not proof under Gatekeeper.
 
-## Second-Mac Gatekeeper and first-launch smoke
+## Second-Mac Gatekeeper, first-launch, and Agent Mode smoke
 
-Use a second **Apple Silicon** Mac that has no Homebrew, no `diar-venv`, and no Hover model data under `~/Library/Application Support/Hover/`. Prefer a path that applies quarantine (AirDrop, browser download, or a copy that keeps the com.apple.quarantine attribute) — that is the recipient’s path.
+Run this checklist manually after the human-triggered tag workflow is green. The workflow does not start this verification, and passing it does not create another tag or publish another build.
+
+Use a second **Apple Silicon** Mac that has no Homebrew, no `diar-venv`, and no Hover model data under `~/Library/Application Support/Hover/`. Download that tag's `Hover.dmg` from GitHub Releases through a browser so macOS applies quarantine — that is the recipient's path.
 
 Walk this checklist. Any workaround means an earlier release ticket failed; do **not** treat these as installation steps:
 
@@ -101,7 +103,7 @@ Walk this checklist. Any workaround means an earlier release ticket failed; do *
 
 ### Install and launch
 
-- [ ] Copy or download `dist/Hover.dmg` onto the second Mac
+- [ ] Download the green tag workflow's `Hover.dmg` from GitHub Releases onto the second Mac
 - [ ] Double-click the DMG; it opens without a Gatekeeper block
 - [ ] Drag Hover into Applications
 - [ ] Launch Hover from Applications by double-clicking (no workaround)
@@ -111,9 +113,43 @@ Walk this checklist. Any workaround means an earlier release ticket failed; do *
 - [ ] The setup screen appears and starts downloading on its own
 - [ ] Setup downloads **model data only** (~600 MB) — no Homebrew, no Python, no pip, no new executables
 - [ ] When setup finishes, the screen dismisses into the normal app (no extra Continue step)
+- [ ] Choose Install CLI when Hover offers it and approve the administrator prompt
 - [ ] Microphone and Screen Recording prompts appear with Hover’s own usage explanations, and are the only permission steps
 
-### Recording
+### Agent Mode setup
+
+Open a new Terminal window. These checks use the PATH `hover` installed by Install CLI; it must run Hover through the in-bundle wrapper so Install Layout continues to find the bundled Helpers. The Homebrew cask's PATH `hover` uses that same wrapper and is an equivalent entry point on a Mac installed through the personal tap.
+
+- [ ] `command -v hover` reports `/usr/local/bin/hover` for the Install CLI path
+- [ ] `hover setup --status` writes a short “ready” status to stderr, leaves stdout empty, and exits 0 without downloading
+- [ ] `hover setup` also writes “ready” to stderr, leaves stdout empty, and exits 0 without opening Hover's window or showing a dock icon
+
+To check the stream and exit-code contract explicitly, redirect stdout and stderr to separate temporary files. Both commands should leave the stdout file empty, put their status in the stderr file, and print `exit: 0`:
+
+```bash
+hover setup --status >/tmp/hover-setup.stdout 2>/tmp/hover-setup.stderr
+echo "exit: $?"; wc -c /tmp/hover-setup.stdout; cat /tmp/hover-setup.stderr
+
+hover setup >/tmp/hover-setup.stdout 2>/tmp/hover-setup.stderr
+echo "exit: $?"; wc -c /tmp/hover-setup.stdout; cat /tmp/hover-setup.stderr
+```
+
+### Agent Mode Recording Permissions and recording
+
+On this clean Mac, leave Screen Recording ungranted but allow Microphone access. Then record from both sources so Hover has to explain the missing Recording Permission and use its microphone fallback:
+
+```bash
+hover record --duration 10 --source both \
+  >/tmp/hover-record.stdout 2>/tmp/hover-record.stderr
+echo "exit: $?"; cat /tmp/hover-record.stderr; cat /tmp/hover-record.stdout
+```
+
+- [ ] The command opens no Hover window and shows no dock icon
+- [ ] Stderr says Screen Recording permission is needed and that Hover is recording the microphone only
+- [ ] After speaking during the ten-second run, the command exits 0 and stdout contains the transcript
+- [ ] No Homebrew or `diar-venv` is installed or consulted; the run uses Hover.app's bundled Helpers
+
+### GUI recording
 
 - [ ] Record something with two voices and speaker tagging on
 - [ ] The transcript has speaker labels (e.g. Speaker 1 / Speaker 2)
