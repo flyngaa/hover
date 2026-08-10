@@ -25,7 +25,9 @@ jobs:
 
     steps:
       - name: Check out Hover
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Validate tag and set version
         shell: bash
@@ -38,7 +40,7 @@ jobs:
 
       - name: Restore pinned release helpers
         id: helper-cache
-        uses: actions/cache@v6
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: dist/helpers
           key: release-helpers-${{ runner.os }}-${{ runner.arch }}-whisper-v1.9.1-sherpa-v1.13.4-onnxruntime-1.27.0
@@ -123,7 +125,7 @@ jobs:
           esac
 
       - name: Check out personal tap
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: flyngaa/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}

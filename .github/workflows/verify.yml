@@ -18,12 +18,32 @@ jobs:
 
     steps:
       - name: Check out Hover
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Print toolchain
         run: |
           xcodebuild -version
           xcrun swift --version
+          xcrun swift-format --version
+
+      - name: Lint Swift formatting
+        run: |
+          xcrun swift-format lint \
+            --strict \
+            --configuration .swift-format \
+            --recursive \
+            Sources \
+            Packages/HoverModules/Sources \
+            Tests \
+            Packages/HoverModules/Tests \
+            Scripts/make_icon.swift
+
+      - name: Syntax-check shell entrypoints
+        run: |
+          find . -type f -name '*.sh' -not -path './.build/*' -print0 \
+            | xargs -0 -n1 bash -n
 
       - name: Run standard tests
         run: ./test.sh
@@ -42,3 +62,12 @@ jobs:
 
       - name: Smoke-test Agent Mode routing
         run: Scripts/smoke-agent-mode.sh .build/ci-derived-data/Build/Products/Release/Hover.app
+
+      - name: Upload Xcode diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hover-xcode-diagnostics
+          path: .build/ci-derived-data/Logs
+          if-no-files-found: ignore
+          retention-days: 7
