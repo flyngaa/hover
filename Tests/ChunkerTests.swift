@@ -1,5 +1,5 @@
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The chunking policy is pure value logic, so it can be exercised directly with
 /// canned sample buffers — no audio hardware, queues, or timers involved.

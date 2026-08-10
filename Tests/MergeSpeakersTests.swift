@@ -1,5 +1,5 @@
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The speaker-merge step is pure: given transcript segments and detected speaker
 /// turns, it attributes the text to speakers — splitting a segment that spans more

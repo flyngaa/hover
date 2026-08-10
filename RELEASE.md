@@ -20,9 +20,11 @@ The workflow writes credentials only into the runner's temporary directory and a
 
 Do this once on the Mac that will cut releases. Re-do only when the identity or notary credentials are replaced.
 
-1. Install a **Developer ID Application** certificate for team **ALHP6856UK** so this identity is available for codesign:
+1. Install a **Developer ID Application** certificate for team **ALHP6856UK** so this identity is available for codesign. Supply its identity explicitly when invoking the release; release scripts do not search the Keychain:
 
-   `Developer ID Application: Antoine Valente (ALHP6856UK)`
+   ```bash
+   SIGN_IDENTITY="Developer ID Application: Antoine Valente (ALHP6856UK)" ./release.sh
+   ```
 
 2. Store App Store Connect notary credentials in the Keychain as profile **`hover-notary`**:
 
@@ -38,7 +40,14 @@ Do this once on the Mac that will cut releases. Re-do only when the identity or 
    xcrun notarytool history --keychain-profile hover-notary
    ```
 
-`./setup-signing.sh` is only for local **Hover Local Dev** signing used by `./build.sh`. It is not part of the release track.
+Development builds are unsigned and come from the same shared Xcode scheme as releases:
+
+```bash
+./build.sh
+./test.sh
+```
+
+The generated Debug app is under `.build/xcode-derived-data/Build/Products/Debug/`.
 
 ## Helper cache (when needed)
 
@@ -72,7 +81,7 @@ brew install --cask flyngaa/tap/hover
 On an Apple Silicon release Mac, from a clean checkout with the one-time setup and helper cache in place:
 
 ```bash
-./release.sh
+SIGN_IDENTITY="Developer ID Application: Antoine Valente (ALHP6856UK)" ./release.sh
 ```
 
 Success looks like exit status 0 and a final line of:

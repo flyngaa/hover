@@ -1,5 +1,5 @@
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Shared test doubles used across the engine-level suites. They let the engine
 /// run with no whisper-cli, no audio devices, and no real disk access.

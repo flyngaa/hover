@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The moth in the menu bar has to follow the engine whatever started the
 /// recording — the Record button, or the keyboard shortcut. It used to be driven

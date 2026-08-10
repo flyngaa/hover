@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Covers both the pure formatting rules and the real filesystem operations of
 /// `FileTranscriptStore`, using a throwaway temp directory for the I/O tests.

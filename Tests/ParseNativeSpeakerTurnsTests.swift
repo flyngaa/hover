@@ -1,5 +1,5 @@
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The native `sherpa-onnx-offline-speaker-diarization` helper prints human
 /// turn lines (`start -- end speaker_NN`), not the JSON `diarize.py` emits.

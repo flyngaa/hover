@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The permission gate in front of a recording: what Hover asks, when it asks
 /// it, and what it records once the user has answered. Driven with

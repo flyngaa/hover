@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Availability means "this Mac can tag speakers" — native helper + both models,
 /// or the dev venv + script + both models. Missing either path still reports

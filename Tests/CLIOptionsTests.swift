@@ -1,5 +1,5 @@
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Argument parsing is pure, so the agent-facing flags can be checked directly.
 @Suite struct CLIOptionsTests {

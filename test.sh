@@ -1,13 +1,13 @@
 #!/bin/bash
-# Runs the unit test suite.
-#
-# On this Mac (Command Line Tools, no full Xcode), `swift test` can't execute a
-# test bundle, so the tests are built as a small executable that runs
-# swift-testing directly. This just launches it.
-#
-# With full Xcode installed, `swift test` also works.
-set -e
-cd "$(dirname "$0")"
+# Run the standard Swift Testing target against the production app graph.
+set -euo pipefail
 
-echo "Running tests..."
-swift run TranscriberTests "$@"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+xcodebuild test \
+    -project "$ROOT/Hover.xcodeproj" \
+    -scheme Hover \
+    -configuration Debug \
+    -derivedDataPath "$ROOT/.build/xcode-derived-data" \
+    CODE_SIGNING_ALLOWED=NO \
+    "$@"

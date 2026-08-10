@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Engine-level coverage of first-launch Model Setup: required vs skipped,
 /// Retry after failure, recording refused while incomplete. Driven with

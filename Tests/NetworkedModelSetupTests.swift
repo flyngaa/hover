@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 private final class ProgressLog: @unchecked Sendable {
     var values: [Double] = []

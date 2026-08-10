@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Verifies the settings seam: the UserDefaults-backed store round-trips values,
 /// and the engine loads from / writes through whatever store it's given.
