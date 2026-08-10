@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Presence-based resolution of helpers and model data. Injected bundle and home
 /// roots keep these tests off the real Application Support and the developer's

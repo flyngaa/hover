@@ -1,5 +1,5 @@
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The sidebar marking rules are pure value logic in ``Selection``, so the
 /// toggle / range / anchor behaviour can be checked directly.

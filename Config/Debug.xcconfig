@@ -1,0 +1,6 @@
+#include "Base.xcconfig"
+#include "Version.xcconfig"
+
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+DEBUG_INFORMATION_FORMAT = dwarf
+ENABLE_TESTABILITY = YES

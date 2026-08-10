@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// These tests are the reason the seams exist: the engine's orchestration is
 /// verified with fakes on every side — no whisper-cli, no audio devices, no disk,

@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// Transcripts live in exactly one folder. These tests pin down how that folder
 /// is chosen — including that switching folders never silently abandons files.

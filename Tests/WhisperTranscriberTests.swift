@@ -1,5 +1,5 @@
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 /// The bits of the Whisper transcriber that don't need the actual `whisper-cli`
 /// binary: cleaning its noisy output.

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import TranscriberKit
+@testable import HoverApp
 
 @Suite struct InstallCLITests {
     private let commandURL = URL(fileURLWithPath: "/usr/local/bin/hover")
