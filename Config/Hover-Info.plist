@@ -28,8 +28,8 @@
     <string>Hover needs microphone access to transcribe audio.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
-    <key>NSScreenCaptureUsageDescription</key>
-    <string>Hover needs Screen Recording access to capture system and app audio for transcription.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Hover captures system and app audio for transcription.</string>
     <key>NSSupportsAutomaticTermination</key>
     <false/>
 </dict>

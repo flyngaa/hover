@@ -1,5 +1,6 @@
 import HoverCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(RecordingModel.self) private var recording
@@ -25,6 +26,24 @@ struct ContentView: View {
         .sheet(isPresented: $offerInstallCLIAfterSetup) {
             InstallCLIView(isOnboarding: true)
         }
+        .fileImporter(
+            isPresented: .init(
+                get: { library.outputDirectoryAuthorizationRequest != nil },
+                set: { if !$0 { library.cancelOutputDirectoryAuthorization() } }
+            ),
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            guard case .success(let directories) = result,
+                let directory = directories.first
+            else { return }
+            library.authorizeOutputDirectory(directory)
+        }
+        .fileDialogDefaultDirectory(library.outputDirectoryAuthorizationRequest)
+        .fileDialogConfirmationLabel("Allow Access")
+        .fileDialogMessage(
+            "Choose the folder where Hover reads and saves transcript files."
+        )
         .alert(
             "Transcript operation failed",
             isPresented: .init(

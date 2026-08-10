@@ -193,8 +193,8 @@ import Testing
         #expect(settings.inputSource == .both)
     }
 
-    /// macOS never applies a fresh Screen Recording grant to the process that
-    /// asked for it, so the ask has to end in a restart offer rather than in
+    /// A newly granted System Audio permission may require a fresh app process,
+    /// so the ask has to end in a restart offer rather than in
     /// "then relaunch" buried in a paragraph.
     @Test func allowingScreenRecordingLeadsToTheRestartMacOSRequires() async {
         let permissions = FakeRecordingPermissions(screenRecording: .notRequested)
@@ -282,5 +282,21 @@ import Testing
             #expect(request.fallbackButton == "Mic only")
             #expect(!request.consoleSummary.contains("\n"), "Agent Mode prints this on one line")
         }
+    }
+
+    @Test func systemAudioPermissionCopyNamesTheAudioOnlyCategory() {
+        let firstRequest = RecordingPermissionRequest(
+            reason: .screenRecordingNotRequested,
+            fallback: .microphone
+        )
+        let refusedRequest = RecordingPermissionRequest(
+            reason: .screenRecordingRefused,
+            fallback: .microphone
+        )
+
+        #expect(firstRequest.title == "Include system audio?")
+        #expect(firstRequest.message.contains("System Audio Recording Only"))
+        #expect(refusedRequest.title == "System audio access is off")
+        #expect(refusedRequest.message.contains("System Audio Recording Only"))
     }
 }

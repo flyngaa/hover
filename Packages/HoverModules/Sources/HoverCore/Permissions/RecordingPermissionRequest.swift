@@ -15,10 +15,10 @@ public struct RecordingPermissionRequest: Equatable, Sendable {
 
     /// What is standing in the way.
     public enum Reason: Equatable, Sendable {
-        /// macOS has never asked about Screen Recording. Explain what it buys
+        /// macOS has never asked about System Audio. Explain what it buys
         /// before triggering the system prompt, rather than after.
         case screenRecordingNotRequested
-        /// Screen Recording was refused. Only System Settings can undo it.
+        /// System Audio was refused. Only System Settings can undo it.
         case screenRecordingRefused
         /// The prompt has been shown; macOS won't apply the grant until Hover
         /// launches again.
@@ -49,8 +49,8 @@ public struct RecordingPermissionRequest: Equatable, Sendable {
     public var title: String {
         switch reason {
         case .screenRecordingNotRequested: return "Include system audio?"
-        case .screenRecordingRefused: return "Screen Recording is off"
-        case .screenRecordingNeedsRelaunch: return "Restart required"
+        case .screenRecordingRefused: return "System audio access is off"
+        case .screenRecordingNeedsRelaunch: return "Reopen Hover for system audio"
         case .microphoneRefused: return "Microphone is off"
         }
     }
@@ -59,12 +59,13 @@ public struct RecordingPermissionRequest: Equatable, Sendable {
         switch reason {
         case .screenRecordingNotRequested:
             return
-                "Needed to capture what your Mac is playing (calls, videos). macOS lists this under Screen Recording. Hover only uses the audio."
+                "To include audio from calls and videos, macOS requires System Audio Recording Only access. Hover captures audio samples only."
         case .screenRecordingRefused:
             return
-                "Enable Hover in System Settings > Privacy & Security > Screen Recording, then restart."
+                "Allow Hover under System Audio Recording Only in System Settings, then try again."
         case .screenRecordingNeedsRelaunch:
-            return "macOS only applies Screen Recording after a restart."
+            return
+                "System audio access is enabled. Reopen Hover, then try the recording again."
         case .microphoneRefused:
             return "Enable Hover in System Settings > Privacy & Security > Microphone."
         }
@@ -94,17 +95,18 @@ public struct RecordingPermissionRequest: Equatable, Sendable {
     public var consoleSummary: String {
         switch reason {
         case .screenRecordingNotRequested, .screenRecordingNeedsRelaunch:
-            return "Screen Recording permission needed. Open Hover once to allow it."
+            return
+                "System Audio Recording Only access is needed. Allow Hover in System Settings, then reopen it."
         case .screenRecordingRefused:
             return
-                "Screen Recording is off. System Settings > Privacy & Security > Screen Recording."
+                "System audio access is off. Enable Hover under System Audio Recording Only in System Settings."
         case .microphoneRefused:
             return "Microphone is off. System Settings > Privacy & Security > Microphone."
         }
     }
 
     /// The same question, moved on to the restart that macOS requires before a
-    /// fresh Screen Recording grant reaches Hover.
+    /// fresh System Audio grant reaches Hover.
     public func awaitingRelaunch() -> RecordingPermissionRequest {
         RecordingPermissionRequest(
             id: id,

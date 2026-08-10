@@ -284,7 +284,7 @@ final class RecordingModel {
     }
 
     /// Answer a pending request by going to fix the permission — the system
-    /// prompt, or the System Settings pane. Screen Recording then moves on to
+    /// prompt, or the System Settings pane. System Audio then moves on to
     /// the restart macOS insists on before the grant reaches Hover.
     func grantPermission(requestID: UUID? = nil) {
         guard
