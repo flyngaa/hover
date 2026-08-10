@@ -1,16 +1,11 @@
 import AVFoundation
 import AppKit
-import CoreGraphics
 import HoverCore
 
 /// ``RecordingPermissions`` backed by the real system state.
 public final class SystemRecordingPermissions: RecordingPermissions {
 
-    private let defaults: UserDefaults
-
-    public init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-    }
+    public init() {}
 
     public var microphone: PermissionState {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
@@ -22,12 +17,11 @@ public final class SystemRecordingPermissions: RecordingPermissions {
         }
     }
 
-    /// macOS reports Screen Recording as a plain yes/no, so "never asked" is
-    /// remembered here. Without it a first-time user would be sent to System
-    /// Settings to switch on something they were never offered.
+    /// Core Audio doesn't expose a preflight API for its audio-only privacy
+    /// permission. The first AudioDeviceStart for a process tap is the request:
+    /// macOS shows its own prompt and applies the answer to that call.
     public var screenRecording: PermissionState {
-        if CGPreflightScreenCaptureAccess() { return .granted }
-        return defaults.bool(forKey: Keys.screenRecordingRequested) ? .denied : .notRequested
+        .granted
     }
 
     public func requestMicrophone() async -> PermissionState {
@@ -37,17 +31,14 @@ public final class SystemRecordingPermissions: RecordingPermissions {
     }
 
     public func requestScreenRecording() {
-        // Recorded before the call, not after: the prompt is answered long after
-        // this returns, and its return value is false either way.
-        defaults.set(true, forKey: Keys.screenRecordingRequested)
-        _ = CGRequestScreenCaptureAccess()
+        // Audio-only access is requested by starting the Core Audio process tap.
     }
 
     public func openSettings(for permission: RecordingPermission) {
         let pane: String
         switch permission {
         case .microphone: pane = "Privacy_Microphone"
-        case .screenRecording: pane = "Privacy_ScreenCapture"
+        case .screenRecording: pane = "Privacy_AudioCapture"
         }
         guard
             let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)")
@@ -65,9 +56,5 @@ public final class SystemRecordingPermissions: RecordingPermissions {
         ) { _, _ in
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
-    }
-
-    private enum Keys {
-        static let screenRecordingRequested = "hasRequestedScreenRecording"
     }
 }

@@ -6,7 +6,7 @@ import SwiftUI
 /// is already allowed. Shown in place of starting a recording.
 ///
 /// Reads the question from the engine rather than taking it as a parameter: one
-/// answer leads to the next question (allowing Screen Recording leads to the
+/// answer leads to the next question (allowing System Audio can lead to the
 /// restart macOS requires), and this way the open sheet just changes its wording
 /// instead of having to close and reopen. All of it comes from
 /// ``RecordingPermissionRequest``.

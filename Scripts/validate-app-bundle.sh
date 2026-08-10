@@ -27,12 +27,14 @@ plist_value() {
 
 [[ "$(plist_value CFBundleIdentifier)" == "com.hover.desktop" ]] \
     || die "unexpected bundle identifier"
-[[ "$(plist_value LSMinimumSystemVersion)" == "14.0" ]] \
-    || die "deployment target must be macOS 14.0"
+[[ "$(plist_value LSMinimumSystemVersion)" == "14.2" ]] \
+    || die "deployment target must be macOS 14.2"
 [[ -n "$(plist_value NSMicrophoneUsageDescription)" ]] \
     || die "microphone usage description is missing"
-[[ -n "$(plist_value NSScreenCaptureUsageDescription)" ]] \
-    || die "screen-capture usage description is missing"
+[[ -n "$(plist_value NSAudioCaptureUsageDescription)" ]] \
+    || die "system audio capture usage description is missing"
+[[ -z "$(plist_value NSScreenCaptureUsageDescription)" ]] \
+    || die "screen capture usage description must not be present"
 
 if [[ -n "$EXPECTED_VERSION" ]]; then
     [[ "$(plist_value CFBundleShortVersionString)" == "$EXPECTED_VERSION" ]] \

@@ -35,12 +35,14 @@ final class TranscriptLibraryModel {
     var selection = Selection()
     var pendingOutputChange: PendingOutputDestinationChange?
     private(set) var outputDirectory: URL
+    private(set) var outputDirectoryAuthorizationRequest: URL?
     var presentedFailureMessage: String?
 
     @ObservationIgnored private let transcriptStore: any TranscriptStore
     @ObservationIgnored private let settings: any SettingsStore
     @ObservationIgnored private let vaultFinder: any VaultFinder
     @ObservationIgnored private let log: @Sendable (String) -> Void
+    @ObservationIgnored private var securityScopedOutputDirectory: URL?
 
     init(
         transcriptStore: any TranscriptStore,
@@ -60,15 +62,11 @@ final class TranscriptLibraryModel {
             )
             outputDirectory = savedDirectory
         } catch {
-            outputDirectory = Self.defaultOutputDirectory
-            presentedFailureMessage =
-                TranscriptStoreError
-                .createDirectoryFailed(diagnostic: error.localizedDescription)
-                .localizedDescription
-            try? FileManager.default.createDirectory(
-                at: Self.defaultOutputDirectory,
-                withIntermediateDirectories: true
-            )
+            // Creation can itself be the first protected-folder operation. Ask
+            // the user to select an accessible folder instead of falling into
+            // an alert before the library even gets a chance to load.
+            outputDirectory = savedDirectory
+            outputDirectoryAuthorizationRequest = savedDirectory
         }
         reload()
     }
@@ -149,9 +147,43 @@ final class TranscriptLibraryModel {
             let library = try transcriptStore.load(in: outputDirectory)
             savedTranscripts = library.transcripts
             groups = library.groups
+            outputDirectoryAuthorizationRequest = nil
+            presentedFailureMessage = nil
+        } catch let error as TranscriptStoreError {
+            if case .unreadableDirectory = error {
+                // A path in Documents, iCloud Drive, OneDrive, or another
+                // protected location may need an explicit user selection. Let
+                // the view present macOS's folder picker instead of showing a
+                // dead-end filesystem error.
+                savedTranscripts = []
+                groups = []
+                outputDirectoryAuthorizationRequest = outputDirectory
+                presentedFailureMessage = nil
+            } else {
+                present(error)
+            }
         } catch {
             present(error)
         }
+    }
+
+    /// Retry an unreadable Output Destination after the user selects a folder
+    /// in macOS's authorization picker. Selecting a different folder is also a
+    /// valid recovery and makes that folder the new destination.
+    func authorizeOutputDirectory(_ directory: URL) {
+        let startedSecurityScope = directory.startAccessingSecurityScopedResource()
+        outputDirectoryAuthorizationRequest = nil
+        setOutputDirectory(directory)
+        if outputDirectoryAuthorizationRequest == nil {
+            securityScopedOutputDirectory?.stopAccessingSecurityScopedResource()
+            securityScopedOutputDirectory = startedSecurityScope ? directory : nil
+        } else if startedSecurityScope {
+            directory.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    func cancelOutputDirectoryAuthorization() {
+        outputDirectoryAuthorizationRequest = nil
     }
 
     func recordingDidFinish(_ result: RecordingResult) -> SavedTranscript? {

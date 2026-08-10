@@ -17,7 +17,7 @@ The thing that records system and/or microphone audio, mixes the sources, and em
 _Avoid_: recorder, audio engine (that's one implementation detail).
 
 **Recording Permission**:
-Something macOS has to allow before Hover can hear: the Microphone, or Screen Recording (where macOS files system-audio capture — Hover reads the audio and never looks at the screen). A seam: production reads the real system state, tests supply canned answers. Settled before a recording starts, never during one — Hover explains what a permission buys before triggering macOS's own prompt, and offers to record with whatever is already allowed. A Screen Recording grant only reaches the *next* launch, so allowing it ends in a restart.
+Something macOS has to allow before Hover can hear: the Microphone, or System Audio. Hover captures system audio with a Core Audio process tap, so macOS lists it under **System Audio Recording Only** and prompts the first time a recording needs that source. The tap receives audio samples, not screen frames. A seam: production uses the real system prompt and tests supply canned microphone answers. If system audio cannot start in Both mode, Hover continues with the microphone and explains the reduced input.
 _Avoid_: authorization, TCC, privacy settings (that's where the user changes one, not the concept), entitlement (that's code signing).
 
 **Chunker**:

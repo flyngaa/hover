@@ -39,6 +39,7 @@ import Testing
         private var storedLibrary: TranscriptLibrary
         private var storedRelocations: [(transcripts: [SavedTranscript], destination: URL)] = []
         private let deleteFails: Bool
+        var unreadableDirectory: URL?
 
         var library: TranscriptLibrary {
             get { lock.withLock { storedLibrary } }
@@ -61,7 +62,12 @@ import Testing
             return (title, directory.appendingPathComponent(title).appendingPathExtension("md"))
         }
 
-        func load(in directory: URL) throws -> TranscriptLibrary { library }
+        func load(in directory: URL) throws -> TranscriptLibrary {
+            if directory == unreadableDirectory {
+                throw TranscriptStoreError.unreadableDirectory(diagnostic: "permission denied")
+            }
+            return library
+        }
         func rename(_ transcript: SavedTranscript, to newName: String) throws -> SavedTranscript {
             transcript
         }
@@ -136,6 +142,21 @@ import Testing
         #expect(engine.currentOutputDestination.kind == .custom)
         #expect(engine.currentOutputDestination.directory.path == current.path)
         #expect(engine.outputDestinations.contains { $0.directory.path == current.path })
+    }
+
+    @Test func unreadableFolderRequestsAuthorizationInsteadOfShowingFailure() {
+        let store = SpyTranscriptStore()
+        store.unreadableDirectory = current
+        let engine = makeEngine(store: store, outputDirectoryPath: current.path)
+
+        #expect(engine.outputDirectoryAuthorizationRequest == current)
+        #expect(engine.presentedFailureMessage == nil)
+
+        engine.authorizeOutputDirectory(elsewhere)
+
+        #expect(engine.outputDirectory == elsewhere)
+        #expect(engine.outputDirectoryAuthorizationRequest == nil)
+        #expect(engine.presentedFailureMessage == nil)
     }
 
     // MARK: - Switching with nothing to lose
