@@ -1,11 +1,6 @@
 # Deterministic Xcode Derived Data and release archives
 .build/
 
-# Legacy root-level build artifacts
-Hover.app/
-Hover
-!Scripts/hover
-
 # Release artifacts and cached helper binaries (never commit Mach-Os)
 dist/
 
@@ -18,3 +13,4 @@ transcript_*.txt
 # Agentic development
 .scratch/
 .agents/
+docs/

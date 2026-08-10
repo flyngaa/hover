@@ -1,9 +1,10 @@
 import AppKit
 import Foundation
 
-// Loads Logo.png, emits every size macOS needs, and packs them into AppIcon.icns.
+// Loads Resources/Logo.png, emits every size macOS needs, and packs them into
+// Resources/AppIcon.icns.
 
-let sourcePath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Logo.png"
+let sourcePath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Resources/Logo.png"
 guard let sourceImage = NSImage(contentsOfFile: sourcePath) else {
     fatalError("Could not load \(sourcePath)")
 }
@@ -68,7 +69,7 @@ for entry in sizes {
     try! data.write(to: url)
 }
 
-let icnsPath = "AppIcon.icns"
+let icnsPath = "Resources/AppIcon.icns"
 try? fm.removeItem(atPath: icnsPath)
 
 let task = Process()

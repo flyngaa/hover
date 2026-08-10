@@ -31,10 +31,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		AA0000000000000000000201 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
-		AA0000000000000000000202 /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Logo.png; sourceTree = "<group>"; };
-		AA0000000000000000000203 /* Moth.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Moth.svg; sourceTree = "<group>"; };
-		AA0000000000000000000204 /* Obsidian.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Obsidian.svg; sourceTree = "<group>"; };
+		AA0000000000000000000201 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Resources/AppIcon.icns; sourceTree = "<group>"; };
+		AA0000000000000000000202 /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/Logo.png; sourceTree = "<group>"; };
+		AA0000000000000000000203 /* Moth.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Moth.svg; sourceTree = "<group>"; };
+		AA0000000000000000000204 /* Obsidian.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Obsidian.svg; sourceTree = "<group>"; };
 		AA0000000000000000000205 /* diarize.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = Scripts/diarize.py; sourceTree = "<group>"; };
 		AA0000000000000000000206 /* hover */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Scripts/hover; sourceTree = "<group>"; };
 		AA0000000000000000000207 /* ThirdPartyLicenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyLicenses.txt; sourceTree = "<group>"; };
@@ -254,6 +254,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hover.desktop.tests;
+				PRODUCT_MODULE_NAME = "$(TARGET_NAME)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
@@ -270,6 +271,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hover.desktop.tests;
+				PRODUCT_MODULE_NAME = "$(TARGET_NAME)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;

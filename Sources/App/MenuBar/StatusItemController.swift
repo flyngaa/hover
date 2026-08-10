@@ -72,6 +72,7 @@ final class StatusItemController: NSObject {
 /// most of the file is empty space. Dropped into the menu bar as-is the moth
 /// would shrink to a smudge, so we measure where the artwork actually is and
 /// scale the canvas up until the moth alone fills the space we want.
+@MainActor
 private enum MothArtwork {
 
     /// The logo plus the tight bounds of the moth within it, expressed as a
