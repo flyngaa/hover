@@ -4,8 +4,7 @@ on:
   workflow_call:
   push:
     branches:
-      - "**"
-  pull_request:
+      - main
 
 permissions:
   contents: read
