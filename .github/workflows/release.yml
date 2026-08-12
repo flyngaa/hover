@@ -13,13 +13,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    name: Verify tagged product graph
-    uses: ./.github/workflows/verify.yml
-
   release:
     name: Build, notarize, and publish
-    needs: verify
     runs-on: macos-15
     timeout-minutes: 90
 

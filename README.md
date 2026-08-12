@@ -179,8 +179,7 @@ git push origin v1.2.3
 
 ```mermaid
 flowchart LR
-    Tag["Push version tag"] --> Verify["Verify"]
-    Verify --> Build["Build + notarize DMG"]
+    Tag["Push version tag"] --> Build["Build + notarize DMG"]
     Build --> Brew["Update Homebrew cask"]
     Brew --> Publish["Publish GitHub Release"]
 ```
