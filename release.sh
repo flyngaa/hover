@@ -27,7 +27,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 APP_NAME="Hover"
-SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Antoine Valente (ALHP6856UK)}"
+SIGN_IDENTITY="${SIGN_IDENTITY:-}"
 NOTARY_PROFILE="hover-notary"
 NOTARY_KEY="${NOTARY_KEY:-}"
 NOTARY_KEY_ID="${NOTARY_KEY_ID:-}"
@@ -59,17 +59,6 @@ require_helpers_cache() {
         || die "missing $HELPERS_CACHE/sherpa-onnx-offline-speaker-diarization"
     [[ -f "$HELPERS_CACHE/$ONNXRUNTIME_DYLIB" ]] \
         || die "missing $HELPERS_CACHE/$ONNXRUNTIME_DYLIB"
-}
-
-require_signing_identity() {
-    # Presence only — Scripts/build-release-app.sh resolves a unique hash
-    # when the common name is duplicated across keychains.
-    if [[ "$SIGN_IDENTITY" =~ ^[0-9A-Fa-f]{40}$ ]]; then
-        return 0
-    fi
-    security find-identity -v -p codesigning 2>/dev/null \
-        | grep -F "\"$SIGN_IDENTITY\"" >/dev/null \
-        || die "signing identity not found: $SIGN_IDENTITY"
 }
 
 # CI supplies an App Store Connect API key directly. Local smoke keeps using
@@ -188,8 +177,8 @@ require_cmd hdiutil
 require_helpers_cache
 
 if [[ "$SKIP_SIGN" != "1" ]]; then
-    require_cmd security
-    require_signing_identity
+    [[ -n "$SIGN_IDENTITY" ]] \
+        || die "SIGN_IDENTITY must be supplied by the human or CI release environment"
 else
     echo "note: SKIP_SIGN=1 — release app will be assembled without Developer ID"
 fi
