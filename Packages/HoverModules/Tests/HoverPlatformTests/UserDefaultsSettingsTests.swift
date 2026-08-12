@@ -16,7 +16,6 @@ import Testing
 
         let settings = UserDefaultsSettings(defaults: defaults)
         #expect(settings.inputSource == .both)
-        #expect(settings.diarizeSpeakers == true)
         #expect(settings.outputDirectoryPath == nil)
     }
 
@@ -26,12 +25,10 @@ import Testing
 
         let settings = UserDefaultsSettings(defaults: defaults)
         settings.inputSource = .microphone
-        settings.diarizeSpeakers = true
         settings.outputDirectoryPath = "/tmp/out"
 
         let reloaded = UserDefaultsSettings(defaults: defaults)
         #expect(reloaded.inputSource == .microphone)
-        #expect(reloaded.diarizeSpeakers == true)
         #expect(reloaded.outputDirectoryPath == "/tmp/out")
     }
 

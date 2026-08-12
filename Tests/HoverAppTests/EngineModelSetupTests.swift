@@ -21,8 +21,7 @@ import Testing
             audioCapture: capture,
             transcriptStore: store,
             settings: settings,
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: FakeRecordingPermissions()
         )
         let library = TranscriptLibraryModel(
             transcriptStore: store,
@@ -56,22 +55,22 @@ import Testing
         #expect(engine.modelSetup.status != .notNeeded)
     }
 
-    @Test func setupIsSkippedWhenAllThreeFilesArePresent() {
+    @Test func setupIsSkippedWhenWhisperModelIsPresent() {
         let setup = FakeModelSetup(isComplete: true)
         let engine = makeEngine(modelSetup: setup)
 
         #expect(engine.modelSetup.status == .notNeeded)
     }
 
-    @Test func partialDataStillRequiresSetupAndFetchesOnlyGaps() async {
-        let setup = FakeModelSetup(present: [.ggml])
+    @Test func missingWhisperModelRequiresSetupAndFetchesIt() async {
+        let setup = FakeModelSetup(present: [])
         let engine = makeEngine(modelSetup: setup)
 
         #expect(engine.modelSetup.status != .notNeeded)
 
         engine.modelSetup.startIfNeeded()
         #expect(await waitForStatus(engine, .notNeeded) == .notNeeded)
-        #expect(setup.lastFetched == [.segmentation, .embedding])
+        #expect(setup.lastFetched == [.ggml])
         #expect(setup.fetchCount == 1)
     }
 

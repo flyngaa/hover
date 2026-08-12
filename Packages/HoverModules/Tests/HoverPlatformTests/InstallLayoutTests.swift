@@ -73,27 +73,12 @@ import Testing
         helpersDir.appendingPathComponent("whisper-cli")
     }
 
-    private var bundledSpeakerTagging: URL {
-        helpersDir.appendingPathComponent("sherpa-onnx-offline-speaker-diarization")
-    }
-
-    private var bundledONNXRuntime: URL {
-        bundleRoot.appendingPathComponent("Contents/Frameworks/libonnxruntime.1.27.0.dylib")
-    }
-
-    private var bundledONNXRuntimeInHelpers: URL {
-        helpersDir.appendingPathComponent("libonnxruntime.1.27.0.dylib")
-    }
-
     private func placeCompleteBundledHelpers() throws {
         try placeExecutable(at: bundledWhisper)
-        try placeExecutable(at: bundledSpeakerTagging)
-        try placeFile(at: bundledONNXRuntime)
     }
 
-    @Test func incompleteHelpersDirectoryFailsLayoutResolution() throws {
-        try placeExecutable(at: bundledWhisper)
-        try placeExecutable(at: bundledSpeakerTagging)
+    @Test func emptyHelpersDirectoryFailsLayoutResolution() throws {
+        try FileManager.default.createDirectory(at: helpersDir, withIntermediateDirectories: true)
 
         do {
             _ = try resolve()
@@ -111,11 +96,6 @@ import Testing
             at: bundledWhisper,
             withIntermediateDirectories: true
         )
-        try FileManager.default.createDirectory(
-            at: bundledSpeakerTagging,
-            withIntermediateDirectories: true
-        )
-        try placeFile(at: bundledONNXRuntime)
 
         #expect(throws: InstallLayout.ResolutionError.incompleteShippedHelpers) {
             try self.resolve()
@@ -130,66 +110,32 @@ import Testing
         let layout = try resolve()
 
         #expect(layout.whisperHelper.path == bundledWhisper.path)
-        #expect(layout.speakerTaggingHelper.path == bundledSpeakerTagging.path)
-        #expect(layout.modelsDirectory.path == appSupportModels.path)
-    }
-
-    @Test func completeLocalHelperPayloadResolvesToShippedLayout() throws {
-        try placeExecutable(at: bundledWhisper)
-        try placeExecutable(at: bundledSpeakerTagging)
-        try placeFile(at: bundledONNXRuntimeInHelpers)
-
-        let layout = try resolve()
-
-        #expect(layout.whisperHelper.path == bundledWhisper.path)
-        #expect(layout.speakerTaggingHelper.path == bundledSpeakerTagging.path)
         #expect(layout.modelsDirectory.path == appSupportModels.path)
     }
 
     // MARK: - Absent helpers → dev locations
 
     @Test func absentHelpersFallBackToDevLocations() throws {
-        // Populate the transcripts models folder the way a local build does, so
-        // the fallback has somewhere real to point — without claiming App Support.
         try placeFile(
             at: transcriptsModels.appendingPathComponent("ggml-large-v3-turbo-q5_0.bin")
-        )
-        try placeExecutable(
-            at:
-                transcriptsModels
-                .appendingPathComponent("diar-venv")
-                .appendingPathComponent("bin")
-                .appendingPathComponent("python")
         )
 
         let layout = try resolve()
 
         #expect(layout.whisperHelper.path == "/opt/homebrew/bin/whisper-cli")
-        #expect(
-            layout.speakerTaggingHelper.path
-                == transcriptsModels
-                .appendingPathComponent("diar-venv")
-                .appendingPathComponent("bin")
-                .appendingPathComponent("python").path
-        )
         #expect(layout.modelsDirectory.path == transcriptsModels.path)
+        #expect(layout.ggmlModelPresent)
     }
 
     // MARK: - Partial model directory → per-file presence
 
-    @Test func partialModelDirectoryReportsPresencePerFile() throws {
+    @Test func missingWhisperModelReportsAbsence() throws {
         try placeCompleteBundledHelpers()
-        // Only the GGML model is present; the two ONNX files are missing.
-        try placeFile(
-            at: appSupportModels.appendingPathComponent("ggml-large-v3-turbo-q5_0.bin")
-        )
 
         let layout = try resolve()
 
         #expect(layout.modelsDirectory.path == appSupportModels.path)
-        #expect(layout.ggmlModelPresent)
-        #expect(!layout.segmentationModelPresent)
-        #expect(!layout.embeddingModelPresent)
+        #expect(!layout.ggmlModelPresent)
     }
 
     // MARK: - App Support models never select shipped layout on their own
@@ -198,20 +144,12 @@ import Testing
         try placeFile(
             at: appSupportModels.appendingPathComponent("ggml-large-v3-turbo-q5_0.bin")
         )
-        try placeFile(
-            at: transcriptsModels.appendingPathComponent("nemo_en_titanet_small.onnx")
-        )
 
         let layout = try resolve()
 
         #expect(layout.modelsDirectory.path == transcriptsModels.path)
         #expect(!layout.ggmlModelPresent)
-        #expect(layout.embeddingModelPresent)
         #expect(layout.whisperHelper.path == "/opt/homebrew/bin/whisper-cli")
-        #expect(
-            layout.speakerTaggingHelper.path
-                == transcriptsModels.appendingPathComponent("diar-venv/bin/python").path
-        )
     }
 
     // MARK: - Output Destination never moves model data

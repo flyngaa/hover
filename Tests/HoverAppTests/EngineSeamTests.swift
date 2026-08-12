@@ -48,16 +48,14 @@ import Testing
     private func makeEngine(
         transcriber: Transcriber,
         capture: FakeAudioCapture,
-        transcriptStore: any TranscriptStore = FakeTranscriptStore(),
-        speakerDiarizer: any SpeakerDiarizer = FakeSpeakerDiarizer(turns: [])
+        transcriptStore: any TranscriptStore = FakeTranscriptStore()
     ) -> RecordingModel {
         RecordingModel(
             transcriber: transcriber,
             audioCapture: capture,
             transcriptStore: transcriptStore,
             settings: InMemorySettings(),
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: speakerDiarizer
+            permissions: FakeRecordingPermissions()
         )
     }
 
@@ -139,26 +137,6 @@ import Testing
         _ = await engine.stopRecording()
     }
 
-    @Test func stoppingWithSpeakerTaggingDrainsBeforeAttribution() async {
-        let final = AudioChunk(samples: [0.5], startTime: 0, endTime: 1)
-        let capture = FakeAudioCapture(chunkOnStop: final, fullRecording: [0.5])
-        let diarizer = FakeSpeakerDiarizer(
-            turns: [SpeakerTurn(start: 0, end: 1, speaker: 0)]
-        )
-        let engine = makeEngine(
-            transcriber: FakeTranscriber(result: "hello"),
-            capture: capture,
-            speakerDiarizer: diarizer
-        )
-        engine.diarizeSpeakers = true
-        await engine.startRecording()
-
-        _ = await engine.stopRecording()
-
-        #expect(engine.committedText == "**Speaker 1:** hello")
-        #expect(completedResult(engine)?.body == "**Speaker 1:** hello")
-    }
-
     @Test func stopDuringStartupWaitsForTheSameSession() async {
         let capture = FakeAudioCapture(suspendsStart: true)
         let engine = makeEngine(transcriber: FakeTranscriber(result: "hello"), capture: capture)
@@ -179,11 +157,9 @@ import Testing
         let engine = makeEngine(transcriber: FakeTranscriber(result: "hello"), capture: capture)
         let originalOutput = URL(fileURLWithPath: "/tmp/hover-original", isDirectory: true)
         engine.inputSource = .both
-        engine.diarizeSpeakers = false
 
         await engine.startRecording(outputDirectory: originalOutput)
         engine.inputSource = .microphone
-        engine.diarizeSpeakers = true
 
         guard case .recording(let state) = engine.recordingPhase else {
             Issue.record("Expected a recording session")
@@ -191,7 +167,6 @@ import Testing
         }
         #expect(state.requestedInputSource == .both)
         #expect(state.activeInputSource == .both)
-        #expect(!state.tagsSpeakers)
         #expect(state.outputURL.deletingLastPathComponent() == originalOutput)
         _ = await engine.stopRecording()
     }

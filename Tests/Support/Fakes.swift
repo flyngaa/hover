@@ -16,15 +16,6 @@ struct FakeTranscriber: Transcriber {
     func transcribe(samples: [Float]) async throws -> String { result }
 }
 
-struct FakeSpeakerDiarizer: SpeakerDiarizer {
-    let turns: [SpeakerTurn]
-    var unavailableReason: String? { nil }
-
-    func diarize(samples: [Float], sampleRate: Int) async throws -> [SpeakerTurn] {
-        turns
-    }
-}
-
 /// In-memory no-op store so the engine never touches the real filesystem.
 struct FakeTranscriptStore: TranscriptStore {
     func availableRecordingDestination(
@@ -73,7 +64,6 @@ struct FakeVaultFinder: VaultFinder {
 actor FakeAudioCapture: AudioCapture {
     private var continuation: AsyncStream<AudioCaptureEvent>.Continuation?
     private let chunkOnStop: AudioChunk?
-    private let fullRecording: [Float]?
     private let suspendsStart: Bool
     private let systemStarts: Bool
     private let startErrorDescription: String?
@@ -85,21 +75,17 @@ actor FakeAudioCapture: AudioCapture {
 
     init(
         chunkOnStop: AudioChunk? = nil,
-        fullRecording: [Float]? = nil,
         suspendsStart: Bool = false,
         systemStarts: Bool = true,
         startErrorDescription: String? = nil
     ) {
         self.chunkOnStop = chunkOnStop
-        self.fullRecording = fullRecording
         self.suspendsStart = suspendsStart
         self.systemStarts = systemStarts
         self.startErrorDescription = startErrorDescription
     }
 
-    func start(inputSource: InputSource, retainFullRecording: Bool) async throws
-        -> AudioCaptureStart
-    {
+    func start(inputSource: InputSource) async throws -> AudioCaptureStart {
         startCount += 1
         if let startErrorDescription {
             throw NSError(
@@ -126,11 +112,10 @@ actor FakeAudioCapture: AudioCapture {
             events: events
         )
     }
-    func stop() async -> CaptureStopResult {
+    func stop() async {
         if let chunkOnStop { continuation?.yield(.chunk(chunkOnStop)) }
         continuation?.finish()
         continuation = nil
-        return CaptureStopResult(fullRecording: fullRecording)
     }
     func noteTranscriptionFinished() async {}
 

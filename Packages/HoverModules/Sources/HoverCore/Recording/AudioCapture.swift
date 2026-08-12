@@ -39,19 +39,10 @@ public struct AudioCaptureStart: Sendable {
     }
 }
 
-public struct CaptureStopResult: Sendable {
-    public let fullRecording: [Float]?
-
-    public init(fullRecording: [Float]?) {
-        self.fullRecording = fullRecording
-    }
-}
-
 /// Ordered async boundary between Apple audio callbacks and a recording
 /// session. `stop()` finishes the stream only after yielding the final chunk.
 public protocol AudioCapture: Sendable {
-    func start(inputSource: InputSource, retainFullRecording: Bool) async throws
-        -> AudioCaptureStart
-    func stop() async -> CaptureStopResult
+    func start(inputSource: InputSource) async throws -> AudioCaptureStart
+    func stop() async
     func noteTranscriptionFinished() async
 }

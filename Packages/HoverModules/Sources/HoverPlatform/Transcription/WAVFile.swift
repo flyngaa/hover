@@ -3,9 +3,8 @@ import Foundation
 
 /// Writes float audio samples to a 16-bit mono WAV file.
 ///
-/// A small low-level helper shared by the Whisper transcription path and the
-/// speaker-diarization pass — both hand raw `[Float]` samples to an external
-/// tool that reads a WAV from disk.
+/// A small low-level helper for the Whisper transcription path — hands raw
+/// `[Float]` samples to an external tool that reads a WAV from disk.
 enum WAVFile {
 
     enum WriteError: Error, LocalizedError {

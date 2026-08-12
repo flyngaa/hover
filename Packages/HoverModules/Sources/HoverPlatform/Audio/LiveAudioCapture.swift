@@ -37,7 +37,7 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
 
     // MARK: - Queues / timers
 
-    /// Serializes all buffer mutation (system queue, chunker, full recording).
+    /// Serializes all buffer mutation (system queue, chunker).
     private let mixQueue = DispatchQueue(label: "transcriber.mix")
     private var flushTimer: Timer?
 
@@ -46,9 +46,6 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
     private var chunker = Chunker()
     /// In Both mode, buffered system audio waiting to be mixed into the mic stream.
     private var systemSampleQueue: [Float] = []
-    /// The entire recording, kept only when `retainFullRecording` is on.
-    private var fullRecording: [Float] = []
-    private var retainFullRecording = false
     private var transcribing = false
     private var sysAudioBufferCount = 0
     private var micAudioBufferCount = 0
@@ -76,16 +73,12 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
 
     // MARK: - AudioCapture
 
-    public func start(inputSource: InputSource, retainFullRecording: Bool) async throws
-        -> AudioCaptureStart
-    {
+    public func start(inputSource: InputSource) async throws -> AudioCaptureStart {
         let (events, continuation) = AsyncStream<AudioCaptureEvent>.makeStream()
         self.inputSource = inputSource
         mixQueue.sync {
             self.chunker = Chunker()
             self.systemSampleQueue = []
-            self.fullRecording = []
-            self.retainFullRecording = retainFullRecording
             self.transcribing = false
             self.sysAudioBufferCount = 0
             self.micAudioBufferCount = 0
@@ -121,7 +114,7 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
         )
     }
 
-    public func stop() async -> CaptureStopResult {
+    public func stop() async {
         flushTimer?.invalidate()
         flushTimer = nil
 
@@ -135,12 +128,9 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
         // transcription callback before we return.
         emitChunk(force: true, synchronously: true)
 
-        return mixQueue.sync {
+        mixQueue.sync {
             eventContinuation?.finish()
             eventContinuation = nil
-            return CaptureStopResult(
-                fullRecording: retainFullRecording ? fullRecording : nil
-            )
         }
     }
 
@@ -191,13 +181,9 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
 
     // MARK: - Buffering (mixQueue)
 
-    /// Single entry point for audio headed to the chunker. Also retains the full
-    /// recording when asked. Must be called on `mixQueue`.
+    /// Single entry point for audio headed to the chunker. Must be called on `mixQueue`.
     private func enqueue(_ samples: [Float]) {
         chunker.append(samples)
-        if retainFullRecording {
-            fullRecording.append(contentsOf: samples)
-        }
     }
 
     /// Appends mic samples, mixing in any buffered system audio in Both mode.

@@ -29,9 +29,6 @@ public struct CLIOptions: Equatable, Sendable {
     /// Override which audio source to record (system / microphone / both).
     public var inputSource: InputSource?
 
-    /// Override speaker tagging for this run.
-    public var tagSpeakers: Bool?
-
     /// Emit machine-readable JSON instead of plain text.
     public var json = false
 
@@ -55,8 +52,7 @@ public struct CLIOptions: Equatable, Sendable {
 
         let recordArguments: Set<String> = [
             "record", "--record", "-r", "--duration", "--seconds", "-d",
-            "--output", "-o", "--source", "--input", "--tag-speakers",
-            "--no-tag-speakers", "--json",
+            "--output", "-o", "--source", "--input", "--json",
         ]
         if args.contains(where: recordArguments.contains) {
             options.command = .record
@@ -92,12 +88,6 @@ public struct CLIOptions: Equatable, Sendable {
                     index += 1
                 }
 
-            case "--tag-speakers":
-                options.tagSpeakers = true
-
-            case "--no-tag-speakers":
-                options.tagSpeakers = false
-
             case "--json":
                 options.json = true
 
@@ -128,7 +118,6 @@ public struct CLIOptions: Equatable, Sendable {
                                  in the app: a folder path, or the name of an Obsidian
                                  vault (saves into its Transcripts subfolder).
               --source <both|system|microphone>   Which audio to record.
-              --tag-speakers / --no-tag-speakers  Force speaker labelling on/off.
               --json             Print the result as JSON.
               --status           Report whether Model Setup is complete without downloading.
           -h, --help             Show this help.

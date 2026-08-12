@@ -28,7 +28,7 @@ import Testing
                     .init(
                         exitCode: 1,
                         standardError:
-                            "Model data is missing. Run `hover setup` to download about 600 MB.\n"
+                            "Model data is missing. Run `hover setup` to download about 575 MB.\n"
                     )))
     }
 
