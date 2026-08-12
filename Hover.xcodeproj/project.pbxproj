@@ -1,0 +1,322 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AA0000000000000000000110 /* HoverCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000F02 /* HoverCore */; };
+		AA0000000000000000000111 /* HoverPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000F03 /* HoverPlatform */; };
+		AA0000000000000000000112 /* HoverCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000F04 /* HoverCore */; };
+		AA0000000000000000000113 /* HoverPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000F05 /* HoverPlatform */; };
+		AA0000000000000000000101 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000201 /* AppIcon.icns */; };
+		AA0000000000000000000102 /* Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000202 /* Logo.png */; };
+		AA0000000000000000000103 /* Moth.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000203 /* Moth.svg */; };
+		AA0000000000000000000104 /* Obsidian.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000204 /* Obsidian.svg */; };
+		AA0000000000000000000105 /* diarize.py in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000205 /* diarize.py */; };
+		AA0000000000000000000106 /* hover in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000206 /* hover */; };
+		AA0000000000000000000107 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000207 /* ThirdPartyLicenses.txt */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA0000000000000000000301 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000401 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000501;
+			remoteInfo = HoverApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		AA0000000000000000000201 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Resources/AppIcon.icns; sourceTree = "<group>"; };
+		AA0000000000000000000202 /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/Logo.png; sourceTree = "<group>"; };
+		AA0000000000000000000203 /* Moth.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Moth.svg; sourceTree = "<group>"; };
+		AA0000000000000000000204 /* Obsidian.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Obsidian.svg; sourceTree = "<group>"; };
+		AA0000000000000000000205 /* diarize.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = Scripts/diarize.py; sourceTree = "<group>"; };
+		AA0000000000000000000206 /* hover */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Scripts/hover; sourceTree = "<group>"; };
+		AA0000000000000000000207 /* ThirdPartyLicenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyLicenses.txt; sourceTree = "<group>"; };
+		AA0000000000000000000208 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		AA0000000000000000000209 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		AA000000000000000000020A /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		AA000000000000000000020B /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
+		AA000000000000000000020C /* Hover-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Hover-Info.plist"; sourceTree = "<group>"; };
+		AA000000000000000000020D /* Hover.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Hover.entitlements; sourceTree = "<group>"; };
+		AA000000000000000000020E /* Hover.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hover.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000000000000000000020F /* HoverAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HoverAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AA0000000000000000000601 /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Sources; sourceTree = "<group>"; };
+		AA0000000000000000000602 /* Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Tests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000000000000000000701 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0000000000000000000110 /* HoverCore in Frameworks */,
+				AA0000000000000000000111 /* HoverPlatform in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000702 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0000000000000000000112 /* HoverCore in Frameworks */,
+				AA0000000000000000000113 /* HoverPlatform in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AA0000000000000000000801 = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000601 /* Sources */,
+				AA0000000000000000000602 /* Tests */,
+				AA0000000000000000000802 /* Resources */,
+				AA0000000000000000000803 /* Config */,
+				AA000000000000000000020D /* Hover.entitlements */,
+				AA0000000000000000000804 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000802 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000201 /* AppIcon.icns */,
+				AA0000000000000000000202 /* Logo.png */,
+				AA0000000000000000000203 /* Moth.svg */,
+				AA0000000000000000000204 /* Obsidian.svg */,
+				AA0000000000000000000205 /* diarize.py */,
+				AA0000000000000000000206 /* hover */,
+				AA0000000000000000000207 /* ThirdPartyLicenses.txt */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000803 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000208 /* Base.xcconfig */,
+				AA0000000000000000000209 /* Debug.xcconfig */,
+				AA000000000000000000020A /* Release.xcconfig */,
+				AA000000000000000000020B /* Version.xcconfig */,
+				AA000000000000000000020C /* Hover-Info.plist */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000804 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA000000000000000000020E /* Hover.app */,
+				AA000000000000000000020F /* HoverAppTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000000000000000000501 /* HoverApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000902 /* Build configuration list for PBXNativeTarget "HoverApp" */;
+			buildPhases = (
+				AA0000000000000000000A01 /* Sources */,
+				AA0000000000000000000701 /* Frameworks */,
+				AA0000000000000000000B01 /* Resources */,
+				AA0000000000000000000E01 /* Preserve Agent Mode wrapper executable bit */,
+			);
+			buildRules = ();
+			dependencies = ();
+			fileSystemSynchronizedGroups = (AA0000000000000000000601 /* Sources */);
+			name = HoverApp;
+			packageProductDependencies = (
+				AA0000000000000000000F02 /* HoverCore */,
+				AA0000000000000000000F03 /* HoverPlatform */,
+			);
+			productName = Hover;
+			productReference = AA000000000000000000020E /* Hover.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AA0000000000000000000502 /* HoverAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000903 /* Build configuration list for PBXNativeTarget "HoverAppTests" */;
+			buildPhases = (
+				AA0000000000000000000A02 /* Sources */,
+				AA0000000000000000000702 /* Frameworks */,
+				AA0000000000000000000B02 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (AA0000000000000000000C01 /* PBXTargetDependency */);
+			fileSystemSynchronizedGroups = (AA0000000000000000000602 /* Tests */);
+			name = HoverAppTests;
+			packageProductDependencies = (
+				AA0000000000000000000F04 /* HoverCore */,
+				AA0000000000000000000F05 /* HoverPlatform */,
+			);
+			productName = HoverAppTests;
+			productReference = AA000000000000000000020F /* HoverAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000000000000000000401 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					AA0000000000000000000501 = {CreatedOnToolsVersion = 26.6; };
+					AA0000000000000000000502 = {CreatedOnToolsVersion = 26.6; TestTargetID = AA0000000000000000000501; };
+				};
+			};
+			buildConfigurationList = AA0000000000000000000901 /* Build configuration list for PBXProject "Hover" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = AA0000000000000000000801;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA0000000000000000000F01 /* XCLocalSwiftPackageReference "Packages/HoverModules" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AA0000000000000000000804 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (AA0000000000000000000501 /* HoverApp */, AA0000000000000000000502 /* HoverAppTests */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA0000000000000000000B01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0000000000000000000101 /* AppIcon.icns in Resources */,
+				AA0000000000000000000102 /* Logo.png in Resources */,
+				AA0000000000000000000103 /* Moth.svg in Resources */,
+				AA0000000000000000000104 /* Obsidian.svg in Resources */,
+				AA0000000000000000000105 /* diarize.py in Resources */,
+				AA0000000000000000000106 /* hover in Resources */,
+				AA0000000000000000000107 /* ThirdPartyLicenses.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000B02 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA0000000000000000000E01 /* Preserve Agent Mode wrapper executable bit */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputFileListPaths = ();
+			inputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/hover");
+			name = "Preserve Agent Mode wrapper executable bit";
+			outputFileListPaths = ();
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nchmod +x \"$SCRIPT_INPUT_FILE_0\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000000000000000000A01 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		AA0000000000000000000A02 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA0000000000000000000C01 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = AA0000000000000000000501 /* HoverApp */; targetProxy = AA0000000000000000000301 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000000000000000000D01 /* Debug */ = {isa = XCBuildConfiguration; baseConfigurationReference = AA0000000000000000000209 /* Debug.xcconfig */; buildSettings = {}; name = Debug; };
+		AA0000000000000000000D02 /* Release */ = {isa = XCBuildConfiguration; baseConfigurationReference = AA000000000000000000020A /* Release.xcconfig */; buildSettings = {}; name = Release; };
+		AA0000000000000000000D03 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {COMBINE_HIDPI_IMAGES = YES;}; name = Debug; };
+		AA0000000000000000000D04 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {COMBINE_HIDPI_IMAGES = YES;}; name = Release; };
+		AA0000000000000000000D05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hover.desktop.tests;
+				PRODUCT_MODULE_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Hover.app/Contents/MacOS/Hover";
+			};
+			name = Debug;
+		};
+		AA0000000000000000000D06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hover.desktop.tests;
+				PRODUCT_MODULE_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Hover.app/Contents/MacOS/Hover";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000000000000000000901 /* Build configuration list for PBXProject "Hover" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000D01 /* Debug */, AA0000000000000000000D02 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000902 /* Build configuration list for PBXNativeTarget "HoverApp" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000D03 /* Debug */, AA0000000000000000000D04 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000903 /* Build configuration list for PBXNativeTarget "HoverAppTests" */ = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000D05 /* Debug */, AA0000000000000000000D06 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AA0000000000000000000F01 /* XCLocalSwiftPackageReference "Packages/HoverModules" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/HoverModules;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA0000000000000000000F02 /* HoverCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000F01 /* XCLocalSwiftPackageReference "Packages/HoverModules" */;
+			productName = HoverCore;
+		};
+		AA0000000000000000000F03 /* HoverPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000F01 /* XCLocalSwiftPackageReference "Packages/HoverModules" */;
+			productName = HoverPlatform;
+		};
+		AA0000000000000000000F04 /* HoverCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000F01 /* XCLocalSwiftPackageReference "Packages/HoverModules" */;
+			productName = HoverCore;
+		};
+		AA0000000000000000000F05 /* HoverPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000F01 /* XCLocalSwiftPackageReference "Packages/HoverModules" */;
+			productName = HoverPlatform;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AA0000000000000000000401 /* Project object */;
+}
