@@ -5,26 +5,21 @@ import HoverCore
 /// into a models directory (Application Support on the release path).
 ///
 /// Verification for v1 is a size check against ``ModelArtifact/expectedSize``.
-/// The segmentation artifact arrives as a `.tar.bz2` and is extracted so the
-/// ONNX file lands at the path Install Layout expects. Never downloads
-/// executables — model data only.
+/// Never downloads executables — model data only.
 public final class NetworkedModelSetup: ModelSetup {
 
     private let modelsDirectory: URL
     private let fileManager: FileManager
     private let session: URLSession
-    private let processRunner: any ProcessRunning
 
     public init(
         modelsDirectory: URL,
         fileManager: FileManager = .default,
-        session: URLSession = .shared,
-        processRunner: any ProcessRunning = AsyncProcessRunner()
+        session: URLSession = .shared
     ) {
         self.modelsDirectory = modelsDirectory
         self.fileManager = fileManager
         self.session = session
-        self.processRunner = processRunner
     }
 
     public var isComplete: Bool {
@@ -103,51 +98,13 @@ public final class NetworkedModelSetup: ModelSetup {
         _ artifact: ModelArtifact,
         progress: @escaping @Sendable (Int64) -> Void
     ) async throws {
-        switch artifact {
-        case .ggml, .embedding:
-            let destination = modelsDirectory.appendingPathComponent(artifact.relativePath)
-            try await downloadFile(
-                from: artifact.sourceURL,
-                to: destination,
-                expectedSize: artifact.expectedSize,
-                progress: progress
-            )
-        case .segmentation:
-            try await fetchSegmentationArchive(progress: progress)
-        }
-    }
-
-    /// Download the k2-fsa segmentation tarball and extract it so
-    /// `sherpa-onnx-pyannote-segmentation-3-0/model.onnx` is in place.
-    private func fetchSegmentationArchive(
-        progress: @escaping @Sendable (Int64) -> Void
-    ) async throws {
-        let tempArchive = fileManager.temporaryDirectory
-            .appendingPathComponent("hover-seg-\(UUID().uuidString).tar.bz2")
-        defer { try? fileManager.removeItem(at: tempArchive) }
-
-        // Archive progress is mapped onto the final ONNX size so the overall
-        // bar still sums to the three on-disk artifacts.
+        let destination = modelsDirectory.appendingPathComponent(artifact.relativePath)
         try await downloadFile(
-            from: ModelArtifact.segmentation.sourceURL,
-            to: tempArchive,
-            expectedSize: ModelArtifact.segmentationArchiveSize,
-            progress: { archiveBytes in
-                let mapped = Int64(
-                    Double(archiveBytes) / Double(ModelArtifact.segmentationArchiveSize)
-                        * Double(ModelArtifact.segmentation.expectedSize)
-                )
-                progress(mapped)
-            }
+            from: artifact.sourceURL,
+            to: destination,
+            expectedSize: artifact.expectedSize,
+            progress: progress
         )
-
-        try await extractTarBzip2(tempArchive, into: modelsDirectory)
-
-        guard isPresent(.segmentation) else {
-            throw ModelSetupError.verificationFailed(
-                "Downloaded segmentation model failed the size check."
-            )
-        }
     }
 
     private func downloadFile(
@@ -188,21 +145,6 @@ public final class NetworkedModelSetup: ModelSetup {
             _ = try fileManager.replaceItemAt(destination, withItemAt: staged)
         } else {
             try fileManager.moveItem(at: staged, to: destination)
-        }
-    }
-
-    private func extractTarBzip2(_ archive: URL, into directory: URL) async throws {
-        let result: ProcessResult
-        do {
-            result = try await processRunner.run(
-                executable: URL(fileURLWithPath: "/usr/bin/tar"),
-                arguments: ["-xjf", archive.path, "-C", directory.path]
-            )
-        } catch {
-            throw ModelSetupError.fetchFailed("Could not extract the segmentation model archive.")
-        }
-        guard result.terminationStatus == 0 else {
-            throw ModelSetupError.fetchFailed("Could not extract the segmentation model archive.")
         }
     }
 }

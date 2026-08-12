@@ -21,8 +21,7 @@ import Testing
             audioCapture: capture,
             transcriptStore: FakeTranscriptStore(),
             settings: InMemorySettings(inputSource: inputSource),
-            permissions: permissions,
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: permissions
         )
     }
 
@@ -219,8 +218,7 @@ import Testing
             audioCapture: FakeAudioCapture(),
             transcriptStore: FakeTranscriptStore(),
             settings: settings,
-            permissions: permissions,
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: permissions
         )
         await engine.startRecording()
 

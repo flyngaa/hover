@@ -17,11 +17,8 @@ RELEASE_DIR="$ROOT/dist/release"
 APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
 ARCHIVE_PATH="$ROOT/.build/release/Hover.xcarchive"
 ARCHIVED_APP="$ARCHIVE_PATH/Products/Applications/$APP_NAME.app"
-ONNXRUNTIME_DYLIB="libonnxruntime.1.27.0.dylib"
 
 WHISPER_SIGN_ID="com.hover.desktop.whisper-cli"
-SHERPA_SIGN_ID="com.hover.desktop.sherpa-onnx-diarization"
-ONNX_SIGN_ID="com.hover.desktop.onnxruntime"
 
 die() {
     echo "error: $*" >&2
@@ -39,10 +36,6 @@ assert_arm64() {
 require_helpers_cache() {
     [[ -d "$HELPERS_CACHE" ]] || die "helpers cache missing at $HELPERS_CACHE — run Scripts/build-release-helpers.sh"
     [[ -x "$HELPERS_CACHE/whisper-cli" ]] || die "missing $HELPERS_CACHE/whisper-cli"
-    [[ -x "$HELPERS_CACHE/sherpa-onnx-offline-speaker-diarization" ]] \
-        || die "missing $HELPERS_CACHE/sherpa-onnx-offline-speaker-diarization"
-    [[ -f "$HELPERS_CACHE/$ONNXRUNTIME_DYLIB" ]] \
-        || die "missing $HELPERS_CACHE/$ONNXRUNTIME_DYLIB"
 }
 
 require_entitlements() {
@@ -53,20 +46,6 @@ require_entitlements() {
     fi
     grep -q 'com.apple.security.device.audio-input' "$ENTITLEMENTS" \
         || die "entitlements missing com.apple.security.device.audio-input"
-}
-
-helper_rpaths() {
-    otool -l "$1" | awk '/cmd LC_RPATH/{getline; getline; sub(/^ *path /,""); sub(/ \(offset.*/,""); print}'
-}
-
-prepare_sherpa_frameworks_rpath() {
-    local binary="$1"
-    local rpath
-    while IFS= read -r rpath; do
-        [[ -n "$rpath" ]] || continue
-        install_name_tool -delete_rpath "$rpath" "$binary" 2>/dev/null || true
-    done < <(helper_rpaths "$binary")
-    install_name_tool -add_rpath '@loader_path/../Frameworks' "$binary"
 }
 
 sign_macho() {
@@ -103,8 +82,6 @@ verify_signature() {
 assert_arm64
 require_cmd xcodebuild
 require_cmd ditto
-require_cmd install_name_tool
-require_cmd otool
 require_cmd plutil
 require_helpers_cache
 require_entitlements
@@ -138,28 +115,17 @@ echo "==> Staging release-only helpers"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$RELEASE_DIR"
 ditto "$ARCHIVED_APP" "$APP_BUNDLE"
-mkdir -p "$APP_BUNDLE/Contents/Helpers" "$APP_BUNDLE/Contents/Frameworks"
+mkdir -p "$APP_BUNDLE/Contents/Helpers"
 
 ditto "$HELPERS_CACHE/whisper-cli" \
     "$APP_BUNDLE/Contents/Helpers/whisper-cli"
-ditto "$HELPERS_CACHE/sherpa-onnx-offline-speaker-diarization" \
-    "$APP_BUNDLE/Contents/Helpers/sherpa-onnx-offline-speaker-diarization"
-ditto "$HELPERS_CACHE/$ONNXRUNTIME_DYLIB" \
-    "$APP_BUNDLE/Contents/Frameworks/$ONNXRUNTIME_DYLIB"
-chmod +x \
-    "$APP_BUNDLE/Contents/Helpers/whisper-cli" \
-    "$APP_BUNDLE/Contents/Helpers/sherpa-onnx-offline-speaker-diarization"
-
-prepare_sherpa_frameworks_rpath \
-    "$APP_BUNDLE/Contents/Helpers/sherpa-onnx-offline-speaker-diarization"
+chmod +x "$APP_BUNDLE/Contents/Helpers/whisper-cli"
 
 "$ROOT/Scripts/validate-app-bundle.sh" "$APP_BUNDLE" "$APP_VERSION" 1
 
 if [[ "$SKIP_SIGN" != "1" ]]; then
-    echo "==> Signing inside-out (dylib → helpers → app)"
-    sign_macho "$APP_BUNDLE/Contents/Frameworks/$ONNXRUNTIME_DYLIB" "$ONNX_SIGN_ID"
+    echo "==> Signing inside-out (helper → app)"
     sign_macho "$APP_BUNDLE/Contents/Helpers/whisper-cli" "$WHISPER_SIGN_ID"
-    sign_macho "$APP_BUNDLE/Contents/Helpers/sherpa-onnx-offline-speaker-diarization" "$SHERPA_SIGN_ID"
     sign_app "$APP_BUNDLE"
     verify_signature "$APP_BUNDLE"
 fi

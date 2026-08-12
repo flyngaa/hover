@@ -13,7 +13,6 @@ struct AppDependencies {
     let modelSetup: any ModelSetup
     let transcriber: any Transcriber
     let makeAudioCapture: @Sendable () -> any AudioCapture
-    let speakerDiarizer: any SpeakerDiarizer
     let recordingConfiguration: RecordingConfiguration
 
     static func live() -> AppDependencies {
@@ -35,7 +34,6 @@ struct AppDependencies {
                     log: HoverLog.audioCapture
                 )
             },
-            speakerDiarizer: LocalSpeakerDiarizer(layout: layout),
             recordingConfiguration: configuration
         )
     }
@@ -47,8 +45,7 @@ struct AppDependencies {
             audioCapture: makeAudioCapture(),
             transcriptStore: transcriptStore,
             settings: settings,
-            permissions: permissions,
-            speakerDiarizer: speakerDiarizer
+            permissions: permissions
         )
     }
 

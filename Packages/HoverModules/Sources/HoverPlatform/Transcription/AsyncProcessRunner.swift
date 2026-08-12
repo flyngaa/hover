@@ -1,8 +1,8 @@
 import Foundation
 
-/// Cancellation-aware Foundation `Process` bridge shared by Whisper and
-/// speaker diarization. `ProcessExecution` is the narrow synchronization
-/// boundary around Foundation objects that are not themselves Sendable.
+/// Cancellation-aware Foundation `Process` bridge used by Whisper.
+/// `ProcessExecution` is the narrow synchronization boundary around Foundation
+/// objects that are not themselves Sendable.
 public struct AsyncProcessRunner: ProcessRunning {
     public var diagnosticLimit: Int
 

@@ -12,7 +12,10 @@ import Testing
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let settings = InMemorySettings(outputDirectoryPath: directory.path)
+        let settings = InMemorySettings(
+            inputSource: .microphone,
+            outputDirectoryPath: directory.path
+        )
         let store = FileTranscriptStore()
         let recording = RecordingModel(
             transcriber: FakeTranscriber(result: "hello"),
@@ -21,8 +24,7 @@ import Testing
             ),
             transcriptStore: store,
             settings: settings,
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: FakeRecordingPermissions()
         )
         let library = TranscriptLibraryModel(
             transcriptStore: store,
@@ -44,5 +46,8 @@ import Testing
         #expect(saved?.path == recording.lastResult?.path)
         #expect(library.lastRecordingTranscript == saved)
         #expect(library.savedTranscripts == [saved].compactMap { $0 })
+        // The finished recording is what's on screen, so it's marked in the
+        // sidebar — otherwise marking another transcript couldn't replace it.
+        #expect(library.markedTranscriptIDs == [try #require(saved?.id)])
     }
 }

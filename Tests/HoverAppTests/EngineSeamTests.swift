@@ -49,16 +49,25 @@ import Testing
         transcriber: Transcriber,
         capture: FakeAudioCapture,
         transcriptStore: any TranscriptStore = FakeTranscriptStore(),
-        speakerDiarizer: any SpeakerDiarizer = FakeSpeakerDiarizer(turns: [])
+        inputSource: InputSource = .microphone
     ) -> RecordingModel {
         RecordingModel(
             transcriber: transcriber,
             audioCapture: capture,
             transcriptStore: transcriptStore,
-            settings: InMemorySettings(),
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: speakerDiarizer
+            settings: InMemorySettings(inputSource: inputSource),
+            permissions: FakeRecordingPermissions()
         )
+    }
+
+    /// Returns different text per source sample marker so Both-mode track tests
+    /// can assert Mic vs System labels without a real Whisper.
+    private struct SourceMarkerTranscriber: Transcriber {
+        var unavailableReason: String? { nil }
+        func transcribe(samples: [Float]) async throws -> String {
+            if samples.first == Float(0.25) { return "from system" }
+            return "from mic"
+        }
     }
 
     private func waitForCommitted(
@@ -139,26 +148,6 @@ import Testing
         _ = await engine.stopRecording()
     }
 
-    @Test func stoppingWithSpeakerTaggingDrainsBeforeAttribution() async {
-        let final = AudioChunk(samples: [0.5], startTime: 0, endTime: 1)
-        let capture = FakeAudioCapture(chunkOnStop: final, fullRecording: [0.5])
-        let diarizer = FakeSpeakerDiarizer(
-            turns: [SpeakerTurn(start: 0, end: 1, speaker: 0)]
-        )
-        let engine = makeEngine(
-            transcriber: FakeTranscriber(result: "hello"),
-            capture: capture,
-            speakerDiarizer: diarizer
-        )
-        engine.diarizeSpeakers = true
-        await engine.startRecording()
-
-        _ = await engine.stopRecording()
-
-        #expect(engine.committedText == "**Speaker 1:** hello")
-        #expect(completedResult(engine)?.body == "**Speaker 1:** hello")
-    }
-
     @Test func stopDuringStartupWaitsForTheSameSession() async {
         let capture = FakeAudioCapture(suspendsStart: true)
         let engine = makeEngine(transcriber: FakeTranscriber(result: "hello"), capture: capture)
@@ -179,11 +168,9 @@ import Testing
         let engine = makeEngine(transcriber: FakeTranscriber(result: "hello"), capture: capture)
         let originalOutput = URL(fileURLWithPath: "/tmp/hover-original", isDirectory: true)
         engine.inputSource = .both
-        engine.diarizeSpeakers = false
 
         await engine.startRecording(outputDirectory: originalOutput)
         engine.inputSource = .microphone
-        engine.diarizeSpeakers = true
 
         guard case .recording(let state) = engine.recordingPhase else {
             Issue.record("Expected a recording session")
@@ -191,7 +178,6 @@ import Testing
         }
         #expect(state.requestedInputSource == .both)
         #expect(state.activeInputSource == .both)
-        #expect(!state.tagsSpeakers)
         #expect(state.outputURL.deletingLastPathComponent() == originalOutput)
         _ = await engine.stopRecording()
     }
@@ -252,5 +238,47 @@ import Testing
             return
         }
         #expect(failure.kind == .persistence)
+    }
+
+    @Test func bothModeLabelsMicAndSystemTracks() async {
+        let capture = FakeAudioCapture()
+        let engine = makeEngine(
+            transcriber: SourceMarkerTranscriber(),
+            capture: capture,
+            inputSource: .both
+        )
+        await engine.startRecording()
+        await capture.emit(
+            AudioChunk(samples: [0.5], startTime: 0, endTime: 1, source: .microphone)
+        )
+        await capture.emit(
+            AudioChunk(samples: [0.25], startTime: 1.5, endTime: 3, source: .system)
+        )
+
+        let expected = """
+            **Mic:** from mic
+
+            **System:** from system
+            """
+        #expect(await waitForCommitted(engine, equals: [expected]) == [expected])
+        #expect(engine.committedText == expected)
+
+        let result = await engine.stopRecording()
+        #expect(result?.body == expected)
+    }
+
+    @Test func singleSourceStaysUnlabeled() async {
+        let capture = FakeAudioCapture()
+        let engine = makeEngine(
+            transcriber: FakeTranscriber(result: "plain words"),
+            capture: capture,
+            inputSource: .system
+        )
+        await engine.startRecording()
+        await capture.emit(
+            AudioChunk(samples: [0.5], startTime: 0, endTime: 1, source: .system)
+        )
+        #expect(await waitForCommitted(engine, equals: ["plain words"]) == ["plain words"])
+        #expect(!engine.committedText.contains("**"))
     }
 }

@@ -35,7 +35,6 @@ NOTARY_ISSUER_ID="${NOTARY_ISSUER_ID:-}"
 HELPERS_CACHE="$ROOT/dist/helpers"
 RELEASE_APP="$ROOT/dist/release/$APP_NAME.app"
 DMG_PATH="$ROOT/dist/$APP_NAME.dmg"
-ONNXRUNTIME_DYLIB="libonnxruntime.1.27.0.dylib"
 
 die() {
     echo "error: $*" >&2
@@ -55,10 +54,6 @@ assert_arm64() {
 require_helpers_cache() {
     [[ -d "$HELPERS_CACHE" ]] || die "helpers cache missing at $HELPERS_CACHE — run Scripts/build-release-helpers.sh"
     [[ -x "$HELPERS_CACHE/whisper-cli" ]] || die "missing $HELPERS_CACHE/whisper-cli"
-    [[ -x "$HELPERS_CACHE/sherpa-onnx-offline-speaker-diarization" ]] \
-        || die "missing $HELPERS_CACHE/sherpa-onnx-offline-speaker-diarization"
-    [[ -f "$HELPERS_CACHE/$ONNXRUNTIME_DYLIB" ]] \
-        || die "missing $HELPERS_CACHE/$ONNXRUNTIME_DYLIB"
 }
 
 # CI supplies an App Store Connect API key directly. Local smoke keeps using

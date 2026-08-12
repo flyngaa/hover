@@ -212,8 +212,7 @@ import Testing
             audioCapture: FakeAudioCapture(),
             transcriptStore: FakeTranscriptStore(),
             settings: InMemorySettings(),
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: FakeRecordingPermissions()
         )
         let appModel = AppModel(
             recording: recording,

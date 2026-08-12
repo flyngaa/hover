@@ -87,10 +87,20 @@ struct ContentView: View {
         }
     }
 
+    /// The live transcript owns the pane while a recording is being worked on.
+    /// Once it's finished, the sidebar takes over: the saved transcript is marked
+    /// by then, and marking another one has to be able to replace it on screen.
+    /// Text with nothing marked still shows — that's a recording that couldn't be
+    /// saved, and it's the only copy left.
+    private var showsLiveTranscript: Bool {
+        recording.isRecordingBusy
+            || (!recording.committedText.isEmpty && library.markedTranscriptIDs.isEmpty)
+    }
+
     @ViewBuilder
     private var detailPane: some View {
         Group {
-            if recording.isRecordingBusy || !recording.committedText.isEmpty {
+            if showsLiveTranscript {
                 LiveTranscriptView()
             } else if library.markedTranscriptIDs.count > 1 {
                 MarkedTranscriptsView()

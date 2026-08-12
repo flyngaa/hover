@@ -84,16 +84,17 @@ final class RecordingModel {
         didSet { settings.inputSource = inputSource }
     }
 
-    /// When on, the full recording is analyzed after Stop to label who spoke
-    /// ("Speaker 1", "Speaker 2", …). Runs locally; adds processing time.
-    var diarizeSpeakers: Bool = false {
-        didSet { settings.diarizeSpeakers = diarizeSpeakers }
+    /// Live / finished transcript body. May include `**Mic:**` / `**System:**`
+    /// paragraphs when Both mode is labeling tracks.
+    var committedText: String {
+        // Prefer a single body string (track-labeled Markdown uses newlines);
+        // fall back to space-joining for legacy multi-chunk lists.
+        if committedChunks.count == 1 { return committedChunks[0] }
+        return committedChunks.joined(separator: " ")
     }
 
-    var committedText: String { committedChunks.joined(separator: " ") }
-
     /// True after Stop while the finished recording is still being worked on
-    /// (e.g. the speaker-tagging pass), before the labeled transcript is saved.
+    /// (final chunk flush / save), before the transcript is ready.
     /// `recordingTitle` stays set through that pass; `isRecording` is already off.
     /// Drives the "processing" shimmer over the transcript text.
     var isProcessing: Bool {
@@ -105,10 +106,7 @@ final class RecordingModel {
         if let reason = transcriber.unavailableReason {
             return .failure(RecordingFailure(kind: .unavailableTranscriber, message: reason))
         }
-        return .success(
-            RecordingCapabilities(
-                speakerTaggingAvailable: speakerDiarizer.unavailableReason == nil
-            ))
+        return .success(RecordingCapabilities())
     }
 
     // MARK: - Configuration
@@ -126,16 +124,13 @@ final class RecordingModel {
     /// markdown format). Injected so tests can use an in-memory fake.
     @ObservationIgnored let transcriptStore: TranscriptStore
 
-    /// Persists user settings (input source, tagging, output folder). Injected so
+    /// Persists user settings (input source, output folder). Injected so
     /// tests can use an in-memory store instead of the real `UserDefaults`.
     @ObservationIgnored let settings: SettingsStore
 
     /// What macOS allows Hover to hear. Injected so tests can drive the
     /// permission flows without touching this Mac's real privacy settings.
     @ObservationIgnored let permissions: RecordingPermissions
-
-    /// Performs the optional post-recording speaker analysis asynchronously.
-    @ObservationIgnored let speakerDiarizer: any SpeakerDiarizer
 
     // MARK: - Session state
     @ObservationIgnored private var currentSession: RecordingSession?
@@ -151,8 +146,7 @@ final class RecordingModel {
         audioCapture: any AudioCapture,
         transcriptStore: any TranscriptStore,
         settings: any SettingsStore,
-        permissions: any RecordingPermissions,
-        speakerDiarizer: any SpeakerDiarizer
+        permissions: any RecordingPermissions
     ) {
         self.configuration = configuration
         self.permissions = permissions
@@ -160,12 +154,10 @@ final class RecordingModel {
         self.audioCapture = audioCapture
         self.transcriptStore = transcriptStore
         self.settings = settings
-        self.speakerDiarizer = speakerDiarizer
 
         // Load persisted settings. Assigning inside init doesn't fire the didSet
         // observers, so this reads without immediately writing back.
         inputSource = settings.inputSource
-        diarizeSpeakers = settings.diarizeSpeakers
     }
 
     func log(_ msg: String) {
@@ -186,7 +178,6 @@ final class RecordingModel {
 
         let request = RecordingRequest(
             inputSource: inputSource,
-            tagsSpeakers: diarizeSpeakers,
             outputDirectory: outputDirectory
         )
         presentedFailureMessage = nil
@@ -358,7 +349,6 @@ final class RecordingModel {
             title: title,
             requestedInputSource: request.inputSource,
             activeInputSource: source,
-            tagsSpeakers: request.tagsSpeakers,
             outputURL: logURL
         )
         recordingPhase = .starting(state)
@@ -371,13 +361,11 @@ final class RecordingModel {
             state: state,
             configuration: .init(
                 outputPath: logURL,
-                sampleRate: configuration.sampleRate,
-                retainFullRecording: request.tagsSpeakers
+                sampleRate: configuration.sampleRate
             ),
             transcriber: transcriber,
             audioCapture: audioCapture,
             transcriptStore: transcriptStore,
-            speakerDiarizer: speakerDiarizer,
             onUpdate: { [weak self] update in
                 self?.applySessionUpdate(update, sessionID: state.id)
             }
@@ -456,7 +444,7 @@ final class RecordingModel {
         if let finalizationTask { return await finalizationTask.value }
 
         recordingPhase = .stopping(state)
-        statusMessage = state.tagsSpeakers ? "Transcribing and tagging speakers…" : "Transcribing…"
+        statusMessage = "Transcribing…"
         let task = Task { @MainActor [weak self] in
             let result = await session.stop()
             guard !Task.isCancelled,
@@ -561,18 +549,11 @@ final class RecordingModel {
         switch update {
         case .committed(let text, let chunkCount):
             chunksTranscribed = chunkCount
-            if committedChunks.last != text { committedChunks.append(text) }
+            // Session sends the full body so far (plain or track-labeled Markdown).
+            committedChunks = text.isEmpty ? [] : [text]
         case .status(let status, let chunkCount):
             chunksTranscribed = chunkCount
             applyStatus(status)
-        case .processing:
-            switch recordingPhase {
-            case .recording(let state), .stopping(let state):
-                recordingPhase = .processing(state, .taggingSpeakers)
-            default:
-                break
-            }
-            statusMessage = "Tagging speakers…"
         case .warning(let message):
             presentedFailureMessage = message
         }

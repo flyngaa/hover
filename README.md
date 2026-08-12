@@ -6,7 +6,7 @@
 
 <p align="center">
   Private, on-device transcription for macOS.<br>
-  Capture system audio and microphone input, identify speakers, and save transcripts.
+  Capture system audio and microphone input, and save transcripts.
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 ## Features
 
 - Capture system audio, microphone input, or both.
-- Transcribe locally and label speakers automatically.
+- Transcribe locally on-device.
 - Save to any folder or directly into an Obsidian vault.
 - Record from the macOS app, keyboard shortcuts, or the CLI.
 
@@ -43,8 +43,8 @@ brew install --cask flyngaa/tap/hover
 ### macOS app
 
 1. Choose **Microphone**, **System Audio**, or **Both** as the input source.
-2. Turn speaker tagging on or off and choose where transcripts should be saved.
-3. Start recording. Stop when you are finished; Hover completes speaker tagging and saves the transcript as Markdown.
+2. Choose where transcripts should be saved.
+3. Start recording. Stop when you are finished; Hover finishes transcription and saves the transcript as Markdown. In **Both** mode, lines are labeled `**Mic:**` / `**System:**` from which capture pipe produced the audio (not ML speaker IDs).
 
 The global shortcuts are <kbd>⌘6</kbd> to start and <kbd>⌘7</kbd> to stop. The moth in the menu bar turns red during a recording and brings Hover back to the front when clicked.
 
@@ -54,8 +54,8 @@ The global shortcuts are <kbd>⌘6</kbd> to start and <kbd>⌘7</kbd> to stop. T
 # Record for 30 seconds using the app's saved settings
 hover record --duration 30
 
-# Capture system audio and microphone, then tag speakers
-hover record --source both --tag-speakers
+# Capture system audio and microphone
+hover record --source both
 
 # Save into a folder or a known Obsidian vault
 hover record --output ~/Desktop
@@ -92,9 +92,7 @@ flowchart LR
     Mic["Microphone"] --> Engine
     System["System audio"] --> Engine
     Engine --> Whisper["Whisper transcription"]
-    Engine --> Speakers["Speaker tagging"]
     Whisper --> Transcripts["Markdown transcripts"]
-    Speakers --> Transcripts
     Transcripts --> Storage["Folder or Obsidian vault"]
 ```
 
@@ -107,8 +105,6 @@ flowchart LR
 | Audio Capture | Captures microphone audio with AVFoundation and system audio with a Core Audio process tap |
 | Chunker | Ends a chunk on trailing silence or a hard time limit so transcription can progress during a recording |
 | Transcriber | Writes temporary 16 kHz WAV chunks and runs `whisper-cli` locally |
-| Speaker Tagging | Analyzes the complete recording and finds speaker turns |
-| Speaker Attribution | Aligns timestamped transcript segments with detected speaker turns |
 | Transcript Store | Saves, searches, renames, groups, moves, and deletes Markdown files |
 | Output Destinations | Keeps transcripts in one selected folder, including discovered Obsidian vaults |
 
@@ -119,10 +115,7 @@ Release builds carry pinned native helpers; users do not need to install them se
 | Dependency | Purpose | Release version |
 | --- | --- | --- |
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | On-device speech-to-text | v1.9.1 |
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Offline speaker diarization | v1.13.4 |
-| [ONNX Runtime](https://github.com/microsoft/onnxruntime) | Runs the speaker models | 1.27.0 |
 | Whisper large-v3-turbo Q5 | Multilingual transcription model | Downloaded on first launch |
-| Pyannote segmentation + NeMo TitaNet | Speaker segmentation and embeddings | Downloaded on first launch |
 
 Models live under `~/Library/Application Support/Hover/models` in an installed release. They stay separate from the folder containing your transcripts.
 
@@ -161,7 +154,7 @@ Unlike a release app, a Debug build uses development helper locations. Install W
 brew install whisper-cpp
 ```
 
-First-launch Model Setup stores development model data under `~/Documents/Transcripts/models`. Speaker tagging additionally looks for a Python environment at `~/Documents/Transcripts/models/diar-venv` containing `numpy` and `sherpa_onnx`. The release build does not use this Python fallback; it ships a native speaker-tagging helper.
+First-launch Model Setup stores development model data under `~/Documents/Transcripts/models`. The release build downloads the same Whisper model into Application Support.
 
 ## Contributing
 

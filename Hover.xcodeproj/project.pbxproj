@@ -15,7 +15,6 @@
 		AA0000000000000000000102 /* Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000202 /* Logo.png */; };
 		AA0000000000000000000103 /* Moth.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000203 /* Moth.svg */; };
 		AA0000000000000000000104 /* Obsidian.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000204 /* Obsidian.svg */; };
-		AA0000000000000000000105 /* diarize.py in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000205 /* diarize.py */; };
 		AA0000000000000000000106 /* hover in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000206 /* hover */; };
 		AA0000000000000000000107 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000207 /* ThirdPartyLicenses.txt */; };
 /* End PBXBuildFile section */
@@ -35,7 +34,6 @@
 		AA0000000000000000000202 /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/Logo.png; sourceTree = "<group>"; };
 		AA0000000000000000000203 /* Moth.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Moth.svg; sourceTree = "<group>"; };
 		AA0000000000000000000204 /* Obsidian.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Obsidian.svg; sourceTree = "<group>"; };
-		AA0000000000000000000205 /* diarize.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = Scripts/diarize.py; sourceTree = "<group>"; };
 		AA0000000000000000000206 /* hover */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Scripts/hover; sourceTree = "<group>"; };
 		AA0000000000000000000207 /* ThirdPartyLicenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyLicenses.txt; sourceTree = "<group>"; };
 		AA0000000000000000000208 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
@@ -94,7 +92,6 @@
 				AA0000000000000000000202 /* Logo.png */,
 				AA0000000000000000000203 /* Moth.svg */,
 				AA0000000000000000000204 /* Obsidian.svg */,
-				AA0000000000000000000205 /* diarize.py */,
 				AA0000000000000000000206 /* hover */,
 				AA0000000000000000000207 /* ThirdPartyLicenses.txt */,
 			);
@@ -206,7 +203,6 @@
 				AA0000000000000000000102 /* Logo.png in Resources */,
 				AA0000000000000000000103 /* Moth.svg in Resources */,
 				AA0000000000000000000104 /* Obsidian.svg in Resources */,
-				AA0000000000000000000105 /* diarize.py in Resources */,
 				AA0000000000000000000106 /* hover in Resources */,
 				AA0000000000000000000107 /* ThirdPartyLicenses.txt in Resources */,
 			);

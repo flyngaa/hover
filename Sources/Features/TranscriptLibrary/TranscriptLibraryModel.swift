@@ -210,6 +210,9 @@ final class TranscriptLibraryModel {
             path: path,
             group: loaded.group
         )
+        // The recording that just finished is what the user is looking at, so it
+        // becomes the marked transcript — and the sidebar can then move off it.
+        selection = Selection(markedIDs: [loaded.id], anchorID: loaded.id)
         return lastRecordingTranscript
     }
 
