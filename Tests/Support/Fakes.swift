@@ -75,6 +75,8 @@ actor FakeAudioCapture: AudioCapture {
     private let chunkOnStop: AudioChunk?
     private let fullRecording: [Float]?
     private let suspendsStart: Bool
+    private let systemStarts: Bool
+    private let startErrorDescription: String?
     private var startContinuation: CheckedContinuation<Void, Never>?
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
     /// What the engine asked to capture, or nil if it never started.
@@ -84,20 +86,31 @@ actor FakeAudioCapture: AudioCapture {
     init(
         chunkOnStop: AudioChunk? = nil,
         fullRecording: [Float]? = nil,
-        suspendsStart: Bool = false
+        suspendsStart: Bool = false,
+        systemStarts: Bool = true,
+        startErrorDescription: String? = nil
     ) {
         self.chunkOnStop = chunkOnStop
         self.fullRecording = fullRecording
         self.suspendsStart = suspendsStart
+        self.systemStarts = systemStarts
+        self.startErrorDescription = startErrorDescription
     }
 
     func start(inputSource: InputSource, retainFullRecording: Bool) async throws
         -> AudioCaptureStart
     {
+        startCount += 1
+        if let startErrorDescription {
+            throw NSError(
+                domain: "FakeAudioCapture",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: startErrorDescription]
+            )
+        }
         let (events, continuation) = AsyncStream<AudioCaptureEvent>.makeStream()
         self.continuation = continuation
         startedInputSource = inputSource
-        startCount += 1
         let waiters = startWaiters
         startWaiters.removeAll()
         for waiter in waiters { waiter.resume() }
@@ -107,7 +120,9 @@ actor FakeAudioCapture: AudioCapture {
             }
         }
         return AudioCaptureStart(
-            outcome: CaptureOutcome(systemStarted: inputSource != .microphone),
+            outcome: CaptureOutcome(
+                systemStarted: systemStarts && inputSource != .microphone
+            ),
             events: events
         )
     }
@@ -165,6 +180,10 @@ final class FakeRecordingPermissions: RecordingPermissions {
     func requestScreenRecording() {
         screenRecordingRequests += 1
         if screenRecording == .notRequested { screenRecording = .denied }
+    }
+
+    func noteScreenRecordingAccess(_ state: PermissionState) {
+        screenRecording = state
     }
 
     func openSettings(for permission: RecordingPermission) {

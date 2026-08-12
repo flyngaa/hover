@@ -13,4 +13,3 @@ transcript_*.txt
 # Agentic development
 .scratch/
 .agents/
-docs/
