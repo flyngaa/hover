@@ -44,7 +44,7 @@ brew install --cask flyngaa/tap/hover
 
 1. Choose **Microphone**, **System Audio**, or **Both** as the input source.
 2. Choose where transcripts should be saved.
-3. Start recording. Stop when you are finished; Hover finishes transcription and saves the transcript as Markdown.
+3. Start recording. Stop when you are finished; Hover finishes transcription and saves the transcript as Markdown. In **Both** mode, lines are labeled `**Mic:**` / `**System:**` from which capture pipe produced the audio (not ML speaker IDs).
 
 The global shortcuts are <kbd>⌘6</kbd> to start and <kbd>⌘7</kbd> to stop. The moth in the menu bar turns red during a recording and brings Hover back to the front when clicked.
 

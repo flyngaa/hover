@@ -155,10 +155,19 @@ public actor RecordingSession {
 
     private var consumerTask: Task<Void, Never>?
     private var stopTask: Task<RecordingResult, Never>?
+    /// Plain transcript pieces for single-source recordings.
     private var chunks: [String] = []
+    /// Timestamped, source-tagged pieces when Both mode labels Mic / System tracks.
+    private var segments: [TextSegment] = []
     private var warnings: [RecordingWarning] = []
     private var persistenceFailure: RecordingFailure?
     private var cancelled = false
+
+    private var labelsTracks: Bool { state.activeInputSource == .both }
+
+    private var committedPieceCount: Int {
+        labelsTracks ? segments.count : chunks.count
+    }
 
     public struct Configuration: Sendable {
         public let outputPath: URL
@@ -221,17 +230,18 @@ public actor RecordingSession {
         guard !cancelled else { return }
         switch event {
         case .status(let status):
-            await onUpdate(.status(status, chunkCount: chunks.count))
+            await onUpdate(.status(status, chunkCount: committedPieceCount))
         case .chunk(let chunk):
             do {
                 let text = try await transcriber.transcribe(samples: chunk.samples)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !cancelled else { return }
                 if !text.isEmpty {
-                    if chunks.last != text { chunks.append(text) }
+                    appendTranscript(text: text, from: chunk)
+                    let body = currentBody()
                     do {
-                        try persist(body: chunks.joined(separator: " "))
-                        await onUpdate(.committed(text: text, chunkCount: chunks.count))
+                        try persist(body: body)
+                        await onUpdate(.committed(text: body, chunkCount: committedPieceCount))
                     } catch {
                         await notePersistenceFailure(error)
                     }
@@ -250,6 +260,35 @@ public actor RecordingSession {
         }
     }
 
+    private func appendTranscript(text: String, from chunk: AudioChunk) {
+        if labelsTracks {
+            let last = segments.last
+            let duplicate =
+                last?.text == text
+                && last?.source == chunk.source
+                && last?.start == chunk.startTime
+                && last?.end == chunk.endTime
+            guard !duplicate else { return }
+            segments.append(
+                TextSegment(
+                    start: chunk.startTime,
+                    end: chunk.endTime,
+                    text: text,
+                    source: chunk.source
+                )
+            )
+        } else if chunks.last != text {
+            chunks.append(text)
+        }
+    }
+
+    private func currentBody() -> String {
+        if labelsTracks {
+            return TrackAttribution.merge(segments: segments)
+        }
+        return chunks.joined(separator: " ")
+    }
+
     private func finalize() async -> RecordingResult {
         await audioCapture.stop()
         await consumerTask?.value
@@ -263,7 +302,7 @@ public actor RecordingSession {
             )
         }
 
-        let body = chunks.joined(separator: " ")
+        let body = currentBody()
         return RecordingResult(
             session: state,
             path: body.isEmpty || persistenceFailure != nil ? nil : configuration.outputPath,

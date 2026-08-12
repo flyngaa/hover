@@ -13,15 +13,23 @@ A short slice of captured audio flushed to the Transcriber as one unit, sliced o
 _Avoid_: buffer.
 
 **Audio Capture**:
-The thing that records system and/or microphone audio, mixes the sources, and emits ready-to-transcribe Chunks. A seam: production uses the live OS capture, tests can feed canned samples.
+The thing that records system and/or microphone audio and emits ready-to-transcribe Chunks tagged by source. In Both mode the mic and system pipes stay separate (never sum-mixed) so the transcript can label them; echo cancellation still runs on the mic when system audio is active, and only the first channel it hands back is the mic — the rest carry the Mac's own output as the reference it cancels against. Because echo cancellation can quietly hand over silence, or nothing at all, on some audio hardware, a mic that stays silent is rebuilt without it: a Mic track that echoes System Audio beats no Mic track. A seam: production uses the live OS capture, tests can feed canned samples.
 _Avoid_: recorder, audio engine (that's one implementation detail).
+
+**Audio Source**:
+Which capture pipe produced a Chunk or transcript segment: the Microphone or System Audio. In Both mode, saved Markdown attributes lines as `**Mic:**` / `**System:**` from this — not from ML speaker clustering.
+_Avoid_: speaker, speaker id, diarization.
+
+**Track Attribution**:
+The pure merge of timestamped mic/system transcript segments into one chronological Markdown body with track labels. Consecutive same-track segments become one paragraph; overlapping intervals stay separate paragraphs.
+_Avoid_: speaker attribution, diarization.
 
 **Recording Permission**:
 Something macOS has to allow before Hover can hear: the Microphone, or System Audio. Hover captures system audio with a Core Audio process tap, so macOS lists it under **System Audio Recording Only** and prompts the first time a recording needs that source. The tap receives audio samples, not screen frames, and an unauthorized tap starts and delivers silence rather than failing — so the answer is read from the privacy database before capture, never inferred from whether capture began. A seam: production uses the real system prompt and tests supply canned answers. If system audio cannot start for the selected source, Hover does not begin a partial recording — it shows the permission sheet (Both mode can still choose Mic only explicitly). Agent Mode auto-picks that fallback when one exists.
 _Avoid_: authorization, TCC, privacy settings (that's where the user changes one, not the concept), entitlement (that's code signing).
 
 **Chunker**:
-The rule for where one Chunk ends and the next begins — based on length and trailing silence. Pure logic, independent of how audio is captured.
+The rule for where one Chunk ends and the next begins — based on length and trailing silence. Pure logic, independent of how audio is captured. In Both mode each pipe has its own Chunker and they take turns at the single Transcriber: the chunk whose audio has been waiting longest goes next, timed on one clock both pipes share, so a pipe that had nothing to give for a while can't hold the Transcriber to itself and leave the other track untranscribed.
 _Avoid_: splitter, buffer.
 
 **Transcript Store**:
