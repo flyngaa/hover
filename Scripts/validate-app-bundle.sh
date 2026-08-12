@@ -44,7 +44,7 @@ if [[ -n "$EXPECTED_VERSION" ]]; then
 fi
 
 [[ -x "$EXECUTABLE" ]] || die "main executable is missing or not executable"
-for resource in AppIcon.icns Logo.png Moth.svg Obsidian.svg diarize.py hover ThirdPartyLicenses.txt; do
+for resource in AppIcon.icns Logo.png Moth.svg Obsidian.svg hover ThirdPartyLicenses.txt; do
     [[ -f "$RESOURCES/$resource" ]] || die "required resource is missing: $resource"
 done
 [[ -x "$RESOURCES/hover" ]] || die "Agent Mode wrapper is not executable"
@@ -55,10 +55,6 @@ done
 if [[ "$REQUIRE_RELEASE_LAYOUT" == "1" ]]; then
     [[ -x "$APP_BUNDLE/Contents/Helpers/whisper-cli" ]] \
         || die "release bundle is missing whisper-cli"
-    [[ -x "$APP_BUNDLE/Contents/Helpers/sherpa-onnx-offline-speaker-diarization" ]] \
-        || die "release bundle is missing the speaker-diarization helper"
-    [[ -f "$APP_BUNDLE/Contents/Frameworks/libonnxruntime.1.27.0.dylib" ]] \
-        || die "release bundle is missing ONNX Runtime"
 fi
 
 echo "Validated $APP_BUNDLE"

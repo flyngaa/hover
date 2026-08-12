@@ -3,18 +3,15 @@ import Foundation
 public struct RecordingRequest: Sendable, Equatable {
     public let id: UUID
     public let inputSource: InputSource
-    public let tagsSpeakers: Bool
     public let outputDirectory: URL
 
     public init(
         id: UUID = UUID(),
         inputSource: InputSource,
-        tagsSpeakers: Bool,
         outputDirectory: URL
     ) {
         self.id = id
         self.inputSource = inputSource
-        self.tagsSpeakers = tagsSpeakers
         self.outputDirectory = outputDirectory
     }
 }
@@ -24,7 +21,6 @@ public struct RecordingSessionState: Sendable, Equatable {
     public let title: String
     public let requestedInputSource: InputSource
     public let activeInputSource: InputSource
-    public let tagsSpeakers: Bool
     public let outputURL: URL
 
     public var inputSource: InputSource { activeInputSource }
@@ -34,14 +30,12 @@ public struct RecordingSessionState: Sendable, Equatable {
         title: String,
         requestedInputSource: InputSource,
         activeInputSource: InputSource,
-        tagsSpeakers: Bool,
         outputURL: URL
     ) {
         self.id = id
         self.title = title
         self.requestedInputSource = requestedInputSource
         self.activeInputSource = activeInputSource
-        self.tagsSpeakers = tagsSpeakers
         self.outputURL = outputURL
     }
 }
@@ -49,7 +43,6 @@ public struct RecordingSessionState: Sendable, Equatable {
 public enum RecordingProcessingStage: Sendable, Equatable {
     case flushingFinalChunk
     case transcribing
-    case taggingSpeakers
     case saving
 }
 
@@ -57,7 +50,6 @@ public struct RecordingWarning: Sendable, Equatable {
     public enum Kind: Sendable, Equatable {
         case unavailableSystemAudio
         case lostTranscriptChunk
-        case speakerTagging
         case persistence
     }
 
@@ -89,11 +81,7 @@ public struct RecordingFailure: Error, Sendable, Equatable {
 }
 
 public struct RecordingCapabilities: Sendable, Equatable {
-    public let speakerTaggingAvailable: Bool
-
-    public init(speakerTaggingAvailable: Bool) {
-        self.speakerTaggingAvailable = speakerTaggingAvailable
-    }
+    public init() {}
 }
 
 public enum ApplicationReadiness: Sendable, Equatable {
@@ -151,12 +139,11 @@ public struct RecordingResult: Sendable, Equatable {
 public enum RecordingSessionUpdate: Sendable {
     case committed(text: String, chunkCount: Int)
     case status(CaptureStatus, chunkCount: Int)
-    case processing
     case warning(String)
 }
 
-/// Single owner of one recording's ordered audio, transcription, optional
-/// speaker pass, persistence, final draining, and cancellation.
+/// Single owner of one recording's ordered audio, transcription, persistence,
+/// final draining, and cancellation.
 public actor RecordingSession {
     public nonisolated let state: RecordingSessionState
 
@@ -164,13 +151,11 @@ public actor RecordingSession {
     private let transcriber: any Transcriber
     private let audioCapture: any AudioCapture
     private let transcriptStore: any TranscriptStore
-    private let speakerDiarizer: any SpeakerDiarizer
     private let onUpdate: @MainActor @Sendable (RecordingSessionUpdate) -> Void
 
     private var consumerTask: Task<Void, Never>?
     private var stopTask: Task<RecordingResult, Never>?
     private var chunks: [String] = []
-    private var segments: [TextSegment] = []
     private var warnings: [RecordingWarning] = []
     private var persistenceFailure: RecordingFailure?
     private var cancelled = false
@@ -178,12 +163,10 @@ public actor RecordingSession {
     public struct Configuration: Sendable {
         public let outputPath: URL
         public let sampleRate: Int
-        public let retainFullRecording: Bool
 
-        public init(outputPath: URL, sampleRate: Int, retainFullRecording: Bool) {
+        public init(outputPath: URL, sampleRate: Int) {
             self.outputPath = outputPath
             self.sampleRate = sampleRate
-            self.retainFullRecording = retainFullRecording
         }
     }
 
@@ -193,7 +176,6 @@ public actor RecordingSession {
         transcriber: any Transcriber,
         audioCapture: any AudioCapture,
         transcriptStore: any TranscriptStore,
-        speakerDiarizer: any SpeakerDiarizer,
         onUpdate: @escaping @MainActor @Sendable (RecordingSessionUpdate) -> Void
     ) {
         self.state = state
@@ -201,15 +183,11 @@ public actor RecordingSession {
         self.transcriber = transcriber
         self.audioCapture = audioCapture
         self.transcriptStore = transcriptStore
-        self.speakerDiarizer = speakerDiarizer
         self.onUpdate = onUpdate
     }
 
     public func start() async throws -> CaptureOutcome {
-        let start = try await audioCapture.start(
-            inputSource: state.inputSource,
-            retainFullRecording: configuration.retainFullRecording
-        )
+        let start = try await audioCapture.start(inputSource: state.inputSource)
         consumerTask = Task { [events = start.events] in
             for await event in events {
                 if Task.isCancelled { break }
@@ -230,7 +208,7 @@ public actor RecordingSession {
         cancelled = true
         stopTask?.cancel()
         consumerTask?.cancel()
-        _ = await audioCapture.stop()
+        await audioCapture.stop()
         await consumerTask?.value
         transcriptStore.discardDraft(at: configuration.outputPath)
     }
@@ -251,14 +229,6 @@ public actor RecordingSession {
                 guard !cancelled else { return }
                 if !text.isEmpty {
                     if chunks.last != text { chunks.append(text) }
-                    if configuration.retainFullRecording {
-                        segments.append(
-                            TextSegment(
-                                start: chunk.startTime,
-                                end: chunk.endTime,
-                                text: text
-                            ))
-                    }
                     do {
                         try persist(body: chunks.joined(separator: " "))
                         await onUpdate(.committed(text: text, chunkCount: chunks.count))
@@ -281,7 +251,7 @@ public actor RecordingSession {
     }
 
     private func finalize() async -> RecordingResult {
-        let stopResult = await audioCapture.stop()
+        await audioCapture.stop()
         await consumerTask?.value
 
         guard !cancelled else {
@@ -293,53 +263,7 @@ public actor RecordingSession {
             )
         }
 
-        var body = chunks.joined(separator: " ")
-        if configuration.retainFullRecording,
-            let samples = stopResult.fullRecording,
-            !samples.isEmpty,
-            !segments.isEmpty
-        {
-            await onUpdate(.processing)
-            do {
-                let turns = try await speakerDiarizer.diarize(
-                    samples: samples,
-                    sampleRate: configuration.sampleRate
-                )
-                guard !cancelled else {
-                    transcriptStore.discardDraft(at: configuration.outputPath)
-                    return RecordingResult(
-                        session: state,
-                        path: nil,
-                        body: "",
-                        warnings: warnings
-                    )
-                }
-                let attributed = SpeakerAttribution.merge(segments: segments, turns: turns)
-                if attributed.rangeOfCharacter(from: .alphanumerics) != nil {
-                    body = attributed
-                    do {
-                        try persist(body: body)
-                    } catch {
-                        await notePersistenceFailure(error)
-                    }
-                }
-            } catch is CancellationError {
-                warnings.append(
-                    RecordingWarning(
-                        kind: .speakerTagging,
-                        message: "Speaker tagging was cancelled."
-                    ))
-            } catch {
-                let warning = RecordingWarning(
-                    kind: .speakerTagging,
-                    message:
-                        "The transcript was saved without speaker labels. \(error.localizedDescription)"
-                )
-                warnings.append(warning)
-                await onUpdate(.warning(warning.message))
-            }
-        }
-
+        let body = chunks.joined(separator: " ")
         return RecordingResult(
             session: state,
             path: body.isEmpty || persistenceFailure != nil ? nil : configuration.outputPath,

@@ -43,7 +43,7 @@ enum HoverCLI {
                 CLIProcessResult(
                     exitCode: 1,
                     standardError:
-                        "Model data is missing. Run `hover setup` to download about 600 MB.\n"
+                        "Model data is missing. Run `hover setup` to download about 575 MB.\n"
                 ))
         }
         return .fetch
@@ -115,7 +115,7 @@ enum HoverCLI {
     /// Model Setup rather than hanging on an invisible download.
     static let modelDataMissingMessage =
         "Model data isn't set up yet. Run `hover setup` to download "
-        + "about 600 MB of models, then try `hover record` again."
+        + "about 575 MB of models, then try `hover record` again."
 
     /// `nil` when Agent Mode may proceed; otherwise the stderr message to print
     /// before exiting non-zero. Never starts a download.
@@ -193,7 +193,7 @@ enum HoverCLI {
             applyOverrides()
 
             // Agent Mode never runs setup — a missing model tree fails fast so a
-            // script doesn't hang on an invisible 600 MB download.
+            // script doesn't hang on an invisible ~575 MB download.
             if let reason = HoverCLI.modelDataMissingReason(for: modelSetup) {
                 fail(reason)
             }
@@ -217,8 +217,7 @@ enum HoverCLI {
 
             await waitForStop()
 
-            printStatus(
-                recording.diarizeSpeakers ? "Transcribing and tagging speakers…" : "Transcribing…")
+            printStatus("Transcribing…")
             statusItemController.render(
                 StatusItemSnapshot(
                     activity: .processing,
@@ -254,7 +253,6 @@ enum HoverCLI {
         @MainActor
         private func applyOverrides() {
             if let source = options.inputSource { recording.inputSource = source }
-            if let tag = options.tagSpeakers { recording.diarizeSpeakers = tag }
             if let output = options.output {
                 transcriptLibrary.setOutputDirectory(resolveOutput(output))
                 if let message = transcriptLibrary.presentedFailureMessage { fail(message) }
@@ -321,7 +319,7 @@ enum HoverCLI {
             // Hand Ctrl-C and `kill` back to the system, so a run that gets stuck
             // can still be forced to quit. SIGHUP stays ignored: a terminal being
             // torn down can send several, and nobody is watching to retry — the
-            // speaker pass has to be allowed to finish.
+            // final transcription flush has to be allowed to finish.
             for sig in [SIGINT, SIGTERM] { signal(sig, SIG_DFL) }
         }
 
@@ -367,8 +365,8 @@ enum HoverCLI {
                 print(text)  // the transcript itself goes to stdout for the agent
             }
             if let savedPath { printStatus("Saved: \(savedPath)") }
-            // e.g. speaker tagging isn't set up, or system audio couldn't start.
-            // Without this the run looks clean but quietly skipped something.
+            // e.g. system audio couldn't start. Without this the run looks clean
+            // but quietly skipped something.
             if let warning = recording.presentedFailureMessage {
                 printStatus(warning.replacingOccurrences(of: "\n", with: " "))
             }

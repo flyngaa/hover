@@ -16,13 +16,6 @@ public final class UserDefaultsSettings: SettingsStore {
         set { defaults.set(newValue.rawValue, forKey: Keys.inputSource) }
     }
 
-    public var diarizeSpeakers: Bool {
-        // On by default: only off if the user has explicitly turned it off.
-        // (`object(forKey:)` is nil until the key has ever been written.)
-        get { defaults.object(forKey: Keys.diarizeSpeakers) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Keys.diarizeSpeakers) }
-    }
-
     public var outputDirectoryPath: String? {
         get { defaults.string(forKey: Keys.outputDirectory) }
         set { setOptionalString(newValue, forKey: Keys.outputDirectory) }
@@ -38,7 +31,6 @@ public final class UserDefaultsSettings: SettingsStore {
 
     private enum Keys {
         static let inputSource = "inputSource"
-        static let diarizeSpeakers = "diarizeSpeakers"
         static let outputDirectory = "outputDirectory"
     }
 }

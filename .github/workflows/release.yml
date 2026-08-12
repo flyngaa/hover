@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: dist/helpers
-          key: release-helpers-${{ runner.os }}-${{ runner.arch }}-whisper-v1.9.1-sherpa-v1.13.4-onnxruntime-1.27.0
+          key: release-helpers-${{ runner.os }}-${{ runner.arch }}-whisper-v1.9.1
 
       - name: Build pinned release helpers
         if: steps.helper-cache.outputs.cache-hit != 'true'

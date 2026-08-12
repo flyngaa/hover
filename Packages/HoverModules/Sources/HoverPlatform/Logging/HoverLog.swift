@@ -13,7 +13,6 @@ public enum HoverLog {
     private static let recordingLogger = Logger(subsystem: subsystem, category: "recording")
     private static let audioCaptureLogger = Logger(subsystem: subsystem, category: "audio-capture")
     private static let transcriptionLogger = Logger(subsystem: subsystem, category: "transcription")
-    private static let diarizationLogger = Logger(subsystem: subsystem, category: "diarization")
     private static let modelSetupLogger = Logger(subsystem: subsystem, category: "model-setup")
     private static let storageLogger = Logger(subsystem: subsystem, category: "storage")
     private static let permissionsLogger = Logger(subsystem: subsystem, category: "permissions")
@@ -32,10 +31,6 @@ public enum HoverLog {
 
     public static func transcription(_ message: String) {
         transcriptionLogger.info("\(message, privacy: .private)")
-    }
-
-    public static func diarization(_ message: String) {
-        diarizationLogger.info("\(message, privacy: .private)")
     }
 
     public static func modelSetup(_ message: String) {
@@ -60,14 +55,6 @@ public enum HoverLog {
 
     public static func endWhisperChunk() {
         os_signpost(.end, log: performanceLog, name: "Whisper Chunk")
-    }
-
-    public static func beginDiarization() {
-        os_signpost(.begin, log: performanceLog, name: "Speaker Diarization")
-    }
-
-    public static func endDiarization() {
-        os_signpost(.end, log: performanceLog, name: "Speaker Diarization")
     }
 
     public static func beginModelSetup() {

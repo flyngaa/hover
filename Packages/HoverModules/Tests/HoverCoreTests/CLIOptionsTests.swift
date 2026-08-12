@@ -59,12 +59,6 @@ import Testing
         #expect(CLIOptions.parse(["record", "--source", "bogus"]).inputSource == nil)
     }
 
-    @Test func tagSpeakers() {
-        #expect(CLIOptions.parse(["record", "--tag-speakers"]).tagSpeakers == true)
-        #expect(CLIOptions.parse(["record", "--no-tag-speakers"]).tagSpeakers == false)
-        #expect(CLIOptions.parse(["record"]).tagSpeakers == nil)
-    }
-
     @Test func json() {
         #expect(CLIOptions.parse(["record", "--json"]).json)
     }

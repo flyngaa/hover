@@ -14,29 +14,22 @@ import Testing
             audioCapture: FakeAudioCapture(),
             transcriptStore: FakeTranscriptStore(),
             settings: settings,
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: FakeRecordingPermissions()
         )
     }
 
     @Test func engineLoadsSettingsOnInit() {
-        let settings = InMemorySettings(
-            inputSource: .microphone,
-            diarizeSpeakers: true
-        )
+        let settings = InMemorySettings(inputSource: .microphone)
         let engine = makeEngine(settings: settings)
         #expect(engine.inputSource == .microphone)
-        #expect(engine.diarizeSpeakers == true)
     }
 
     @Test func engineWritesChangesBackToStore() {
         let settings = InMemorySettings()
         let engine = makeEngine(settings: settings)
 
-        engine.diarizeSpeakers = true
         engine.inputSource = .system
 
-        #expect(settings.diarizeSpeakers == true)
         #expect(settings.inputSource == .system)
     }
 }

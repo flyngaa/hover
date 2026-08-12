@@ -21,8 +21,7 @@ import Testing
             ),
             transcriptStore: store,
             settings: settings,
-            permissions: FakeRecordingPermissions(),
-            speakerDiarizer: FakeSpeakerDiarizer(turns: [])
+            permissions: FakeRecordingPermissions()
         )
         let library = TranscriptLibraryModel(
             transcriptStore: store,

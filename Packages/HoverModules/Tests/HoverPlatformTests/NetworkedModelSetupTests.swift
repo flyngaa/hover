@@ -58,25 +58,19 @@ private final class ProgressLog: @unchecked Sendable {
         #expect(!setup().isComplete)
     }
 
-    @Test func allThreeCorrectSizesAreComplete() throws {
-        for artifact in ModelArtifact.allCases {
-            try write(artifact, size: artifact.expectedSize)
-        }
+    @Test func correctWhisperSizeIsComplete() throws {
+        try write(.ggml, size: ModelArtifact.ggml.expectedSize)
         #expect(setup().isComplete)
     }
 
     @Test func wrongSizeCountsAsMissing() throws {
-        try write(.ggml, size: ModelArtifact.ggml.expectedSize)
-        try write(.segmentation, size: ModelArtifact.segmentation.expectedSize)
-        try write(.embedding, size: ModelArtifact.embedding.expectedSize - 1)
+        try write(.ggml, size: ModelArtifact.ggml.expectedSize - 1)
 
         #expect(!setup().isComplete)
     }
 
     @Test func fetchMissingWithNothingMissingReportsComplete() async throws {
-        for artifact in ModelArtifact.allCases {
-            try write(artifact, size: artifact.expectedSize)
-        }
+        try write(.ggml, size: ModelArtifact.ggml.expectedSize)
         let modelSetup = setup()
         let fractions = ProgressLog()
         for try await fraction in modelSetup.fetchMissing() {
