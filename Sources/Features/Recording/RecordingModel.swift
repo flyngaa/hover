@@ -84,7 +84,14 @@ final class RecordingModel {
         didSet { settings.inputSource = inputSource }
     }
 
-    var committedText: String { committedChunks.joined(separator: " ") }
+    /// Live / finished transcript body. May include `**Mic:**` / `**System:**`
+    /// paragraphs when Both mode is labeling tracks.
+    var committedText: String {
+        // Prefer a single body string (track-labeled Markdown uses newlines);
+        // fall back to space-joining for legacy multi-chunk lists.
+        if committedChunks.count == 1 { return committedChunks[0] }
+        return committedChunks.joined(separator: " ")
+    }
 
     /// True after Stop while the finished recording is still being worked on
     /// (final chunk flush / save), before the transcript is ready.
@@ -542,7 +549,8 @@ final class RecordingModel {
         switch update {
         case .committed(let text, let chunkCount):
             chunksTranscribed = chunkCount
-            if committedChunks.last != text { committedChunks.append(text) }
+            // Session sends the full body so far (plain or track-labeled Markdown).
+            committedChunks = text.isEmpty ? [] : [text]
         case .status(let status, let chunkCount):
             chunksTranscribed = chunkCount
             applyStatus(status)

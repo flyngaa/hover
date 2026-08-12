@@ -48,7 +48,21 @@ import Testing
         #expect(chunk?.samples.count == 16_000)
         #expect(abs((chunk?.startTime ?? -1) - 0) < 0.0001)
         #expect(abs((chunk?.endTime ?? -1) - 1) < 0.0001)
+        #expect(chunk?.source == .microphone)
         #expect(chunker.isEmpty)
+    }
+
+    @Test func stampsConfiguredSource() {
+        var chunker = Chunker(
+            sampleRate: 16_000,
+            maxChunkSeconds: 10,
+            minChunkSeconds: 3,
+            silenceWindowSeconds: 0.7,
+            silenceRMSThreshold: 0.004,
+            source: .system
+        )
+        chunker.append(loud(seconds: 1))
+        #expect(chunker.nextChunk(force: true, transcriptionInFlight: false)?.source == .system)
     }
 
     @Test func maxLengthForcesFlush() {
@@ -93,6 +107,47 @@ import Testing
         #expect(chunker.flushedSampleCount == 240_000)
     }
 
+    @Test func aBacklogIsCutIntoChunksRatherThanHandedOverWhole() {
+        var chunker = makeChunker()
+        chunker.append(loud(seconds: 25))  // built up while another track was busy
+
+        let first = chunker.nextChunk(force: false, transcriptionInFlight: false)
+        #expect(first?.samples.count == 160_000)  // one 10s chunk, not all 25s
+        #expect(abs((first?.endTime ?? -1) - 10) < 0.0001)
+
+        let second = chunker.nextChunk(force: false, transcriptionInFlight: false)
+        #expect(abs((second?.startTime ?? -1) - 10) < 0.0001)
+        let third = chunker.nextChunk(force: true, transcriptionInFlight: false)
+        #expect(third?.samples.count == 80_000)
+        #expect(abs((third?.endTime ?? -1) - 25) < 0.0001)
+        #expect(chunker.isEmpty)
+    }
+
+    @Test func arrivalTimesPlaceChunksOnTheSessionClock() {
+        var chunker = makeChunker()
+        // Nothing arrives for the first minute — a pipe that had nothing to give.
+        chunker.append(loud(seconds: 4), endingAt: 64)
+        chunker.append(silent(seconds: 0.7), endingAt: 64.7)
+
+        let chunk = chunker.nextChunk(force: false, transcriptionInFlight: false)
+
+        #expect(abs((chunk?.startTime ?? -1) - 60) < 0.0001)
+        #expect(abs((chunk?.endTime ?? -1) - 64.7) < 0.0001)
+        #expect(chunker.pendingStartTime == nil)
+    }
+
+    @Test func aGapInsideAChunkIsKeptInItsTimespan() {
+        var chunker = makeChunker()
+        chunker.append(loud(seconds: 2), endingAt: 2)
+        // Two seconds of nothing, then more audio.
+        chunker.append(loud(seconds: 2), endingAt: 6)
+
+        let chunk = chunker.nextChunk(force: true, transcriptionInFlight: false)
+
+        #expect(chunk?.samples.count == 64_000)
+        #expect(abs((chunk?.startTime ?? -1) - 0) < 0.0001)
+        #expect(abs((chunk?.endTime ?? -1) - 6) < 0.0001)
+    }
 }
 
 /// Loudness measurement, shared by the chunker's quiet-tail rule and the
