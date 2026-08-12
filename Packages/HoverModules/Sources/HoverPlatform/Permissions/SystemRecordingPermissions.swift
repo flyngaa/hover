@@ -5,7 +5,11 @@ import HoverCore
 /// ``RecordingPermissions`` backed by the real system state.
 public final class SystemRecordingPermissions: RecordingPermissions {
 
-    public init() {}
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     public var microphone: PermissionState {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
@@ -17,11 +21,17 @@ public final class SystemRecordingPermissions: RecordingPermissions {
         }
     }
 
-    /// Core Audio doesn't expose a preflight API for its audio-only privacy
-    /// permission. The first AudioDeviceStart for a process tap is the request:
-    /// macOS shows its own prompt and applies the answer to that call.
+    /// A refused process tap still runs — it just delivers silence — so the
+    /// answer has to come from the privacy database rather than from whether
+    /// capture started. ``SystemAudioAccess`` reads the same service macOS
+    /// gates the tap on; the remembered outcome of the last attempt is the
+    /// fallback for when that lookup isn't available.
     public var screenRecording: PermissionState {
-        .granted
+        if let state = SystemAudioAccess.current { return state }
+        switch defaults.string(forKey: Keys.systemAudioAccess) {
+        case "denied": return .denied
+        default: return .granted
+        }
     }
 
     public func requestMicrophone() async -> PermissionState {
@@ -31,7 +41,19 @@ public final class SystemRecordingPermissions: RecordingPermissions {
     }
 
     public func requestScreenRecording() {
-        // Audio-only access is requested by starting the Core Audio process tap.
+        // Falls back to the Core Audio process tap raising the prompt itself.
+        SystemAudioAccess.request()
+    }
+
+    public func noteScreenRecordingAccess(_ state: PermissionState) {
+        switch state {
+        case .granted:
+            defaults.set("granted", forKey: Keys.systemAudioAccess)
+        case .denied:
+            defaults.set("denied", forKey: Keys.systemAudioAccess)
+        case .notRequested:
+            defaults.removeObject(forKey: Keys.systemAudioAccess)
+        }
     }
 
     public func openSettings(for permission: RecordingPermission) {
@@ -56,5 +78,9 @@ public final class SystemRecordingPermissions: RecordingPermissions {
         ) { _, _ in
             DispatchQueue.main.async { NSApp.terminate(nil) }
         }
+    }
+
+    private enum Keys {
+        static let systemAudioAccess = "systemAudioRecordingAccess"
     }
 }

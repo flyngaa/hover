@@ -1,10 +1,10 @@
 import HoverCore
 import SwiftUI
 
-/// The first thing a new user sees: Hover needs about 600 MB of model data,
-/// one time. Auto-starts the download, shows one overall progress bar, and
-/// offers Retry on failure. Success dismisses into the normal app with no
-/// Continue step — there is no skip.
+/// The first thing a new user sees while the transcription model installs.
+/// Auto-starts the download, shows one overall progress bar, and offers Retry
+/// on failure. Success dismisses into the normal app with no Continue step —
+/// there is no skip.
 struct ModelSetupView: View {
     @Environment(ModelSetupController.self) private var modelSetup
 
@@ -13,12 +13,12 @@ struct ModelSetupView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                Text("Hover needs about 600 MB of model data")
+                Text("Installing the transcription model")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(BrandColors.welcomeLabel)
                     .multilineTextAlignment(.center)
 
-                Text("One-time download. Then you're ready to transcribe.")
+                Text("Data never leaves your machine.")
                     .font(.system(size: 13))
                     .foregroundStyle(BrandColors.welcomeLabel.opacity(0.75))
                     .multilineTextAlignment(.center)

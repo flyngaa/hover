@@ -107,17 +107,15 @@ struct InstallCLIView: View {
     private var actionTitle: String {
         if controller.isInstalling { return "Installing…" }
         if controller.errorMessage != nil { return "Try again" }
-        return controller.status == .needsRepair ? "Repair" : "Install"
+        return "Install"
     }
 
     private var statusMessage: String {
         switch controller.status {
-        case .notInstalled:
+        case .notInstalled, .needsRepair:
             return "Install hover in /usr/local/bin to use Agent Mode from any terminal."
         case .installed:
             return "The hover command is installed for this copy of Hover."
-        case .needsRepair:
-            return "The installed hover command is broken or points to a moved copy of Hover."
         case .foreign:
             return
                 "A different hover command is installed. Hover can replace it if you choose Install."

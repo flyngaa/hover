@@ -28,7 +28,7 @@ final class AppModel {
     var presentedAlert: PresentedAlert?
 
     static let modelSetupIncompleteReason =
-        "Hover still needs to download about 600 MB of model data before it can transcribe. "
+        "Hover still needs to install the transcription model before it can transcribe. "
         + "Wait for setup to finish, or tap Retry if it failed."
 
     init(

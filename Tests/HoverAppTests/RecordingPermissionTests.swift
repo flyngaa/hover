@@ -69,6 +69,43 @@ import Testing
         #expect(engine.permissionRequest?.fallback == .microphone)
     }
 
+    /// Production used to fall back to mic-only when the system-audio tap failed
+    /// mid-start. Both mode must stop and ask instead of recording half of it.
+    @Test func bothModeDoesNotRecordWhenSystemAudioFailsToStart() async {
+        let permissions = FakeRecordingPermissions()
+        let capture = FakeAudioCapture(
+            startErrorDescription: "System Audio Recording Only is off"
+        )
+        let engine = makeEngine(permissions: permissions, capture: capture)
+
+        await engine.startRecording()
+
+        #expect(!engine.isRecording)
+        #expect(await capture.startedInputSource == nil)
+        #expect(engine.permissionRequest?.reason == .screenRecordingRefused)
+        #expect(engine.permissionRequest?.fallback == .microphone)
+        #expect(permissions.screenRecording == .denied)
+        #expect(engine.presentedFailureMessage == nil)
+    }
+
+    @Test func aRememberedSystemAudioDenialAsksAgainOnTheNextRecord() async {
+        let permissions = FakeRecordingPermissions()
+        let failingCapture = FakeAudioCapture(
+            startErrorDescription: "System Audio Recording Only is off"
+        )
+        let engine = makeEngine(permissions: permissions, capture: failingCapture)
+        await engine.startRecording()
+        engine.dismissPermissionRequest()
+
+        let nextCapture = FakeAudioCapture()
+        let nextEngine = makeEngine(permissions: permissions, capture: nextCapture)
+        await nextEngine.startRecording()
+
+        #expect(!nextEngine.isRecording)
+        #expect(await nextCapture.startCount == 0)
+        #expect(nextEngine.permissionRequest?.reason == .screenRecordingRefused)
+    }
+
     @Test func systemOnlyModeHasNothingToFallBackOn() async {
         let permissions = FakeRecordingPermissions(screenRecording: .denied)
         let engine = makeEngine(permissions: permissions, inputSource: .system)
@@ -219,6 +256,7 @@ import Testing
         engine.grantPermission()
 
         #expect(permissions.settingsOpened == [.screenRecording])
+        #expect(permissions.screenRecording == .notRequested)
         #expect(engine.permissionRequest?.reason == .screenRecordingNeedsRelaunch)
     }
 

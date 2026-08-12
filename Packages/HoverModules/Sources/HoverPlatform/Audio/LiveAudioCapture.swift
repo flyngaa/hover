@@ -94,7 +94,6 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
         }
 
         var systemStarted = false
-        var systemAudioFailure: String?
 
         if inputSource != .microphone {
             do {
@@ -102,30 +101,22 @@ public final class LiveAudioCapture: NSObject, AudioCapture, @unchecked Sendable
                 systemStarted = true
                 log("System audio capture started")
             } catch {
-                // System-only mode genuinely can't continue without it.
-                if inputSource == .system { throw error }
-                // Both mode: keep recording with the microphone instead of
-                // failing outright and leaving an empty transcript behind.
-                systemAudioFailure = error.localizedDescription
-                log(
-                    "System audio unavailable, falling back to microphone only: \(error.localizedDescription)"
-                )
+                // Don't start a partial Both recording — the permission sheet
+                // (or Agent Mode fallback) decides whether to retry mic-only.
+                mixQueue.sync {
+                    self.eventContinuation?.finish()
+                    self.eventContinuation = nil
+                }
+                throw error
             }
         }
         if inputSource != .system {
-            // Only mix (and therefore need echo cancellation) if system audio
-            // is genuinely running. When it fell back to mic-only, mixing is a
-            // no-op — and turning on voice processing would needlessly duck the
-            // Mac's output volume.
             startMicrophone(mixingSystemAudio: systemStarted)
         }
 
         await MainActor.run { self.startFlushTimer() }
         return AudioCaptureStart(
-            outcome: CaptureOutcome(
-                systemStarted: systemStarted,
-                systemAudioFailure: systemAudioFailure
-            ),
+            outcome: CaptureOutcome(systemStarted: systemStarted),
             events: events
         )
     }

@@ -270,6 +270,15 @@ final class RecordingModel {
         recordingPhase = .requestingPermission(recordingRequest, request)
     }
 
+    /// System audio failed to start for a source that needs it — don't record
+    /// half of what was asked for; remember the denial and show the sheet.
+    private func refuseSystemAudio(for request: RecordingRequest) {
+        permissions.noteScreenRecordingAccess(.denied)
+        let fallback: InputSource? = request.inputSource == .both ? .microphone : nil
+        ask(.screenRecordingRefused, fallback: fallback, for: request)
+        statusMessage = "Ready"
+    }
+
     /// Answer a pending request by recording with what macOS does allow.
     ///
     /// The user's ``inputSource`` preference is deliberately left alone: this is
@@ -300,6 +309,9 @@ final class RecordingModel {
             )
         case .screenRecordingRefused:
             permissions.openSettings(for: .screenRecording)
+            // Forget the cached denial so the next Record can probe again after
+            // the user flips the switch in System Settings.
+            permissions.noteScreenRecordingAccess(.notRequested)
             recordingPhase = .requestingPermission(
                 recordingRequest,
                 permissionRequest.awaitingRelaunch()
@@ -378,19 +390,14 @@ final class RecordingModel {
                 await session.cancel()
                 return false
             }
-            // Permission was settled before we got here, so a missing system
-            // stream now is a genuine surprise — say what went wrong rather than
-            // leaving the user to wonder why the recording is half of one.
-            if source == .both && !outcome.systemStarted {
-                let reason =
-                    outcome.systemAudioFailure ?? "Hover couldn't start the system audio stream."
-                let warning = RecordingWarning(
-                    kind: .unavailableSystemAudio,
-                    message:
-                        "Hover is recording the microphone only. System audio didn't start.\n\n\(reason)"
-                )
-                await session.noteWarning(warning)
-                presentedFailureMessage = warning.message
+            if source != .microphone && !outcome.systemStarted {
+                await session.cancel()
+                currentSession = nil
+                refuseSystemAudio(for: request)
+                return false
+            }
+            if outcome.systemStarted {
+                permissions.noteScreenRecordingAccess(.granted)
             }
             recordingPhase = .recording(state)
             statusMessage = "Recording..."
@@ -402,6 +409,13 @@ final class RecordingModel {
             return true
         } catch {
             log("ERROR: \(error.localizedDescription)")
+            if source != .microphone {
+                let session = currentSession
+                currentSession = nil
+                if let session { await session.cancel() }
+                refuseSystemAudio(for: request)
+                return false
+            }
             failRecording(
                 requestID: request.id,
                 failure: RecordingFailure(
