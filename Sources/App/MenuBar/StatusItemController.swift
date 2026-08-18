@@ -177,7 +177,7 @@ private enum MothArtwork {
     /// fraction of the canvas. Loaded once — measuring means rasterising, and
     /// the answer never changes while the app runs.
     private static let moth: (logo: NSImage, bounds: NSRect)? = {
-        guard let url = Bundle.main.url(forResource: "Moth", withExtension: "svg"),
+        guard let url = Bundle.main.url(forResource: "hover", withExtension: "svg"),
             let logo = NSImage(contentsOf: url),
             let bounds = artworkBounds(of: logo)
         else { return nil }

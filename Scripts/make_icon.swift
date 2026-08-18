@@ -1,10 +1,12 @@
 import AppKit
 import Foundation
 
-// Loads Resources/Logo.png, emits every size macOS needs, and packs them into
-// Resources/AppIcon.icns.
+// Loads Resources/hover.svg, emits every size macOS needs, packs them into
+// Resources/AppIcon.icns, and writes a 512px Resources/AppIcon.png preview for
+// docs (a white-on-transparent mark is invisible on a light page, so the README
+// uses the tiled preview instead of the raw logo).
 
-let sourcePath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Resources/Logo.png"
+let sourcePath = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Resources/hover.svg"
 guard let sourceImage = NSImage(contentsOfFile: sourcePath) else {
     fatalError("Could not load \(sourcePath)")
 }
@@ -30,17 +32,29 @@ func render(px: Int) -> Data {
     NSGraphicsContext.current?.imageInterpolation = .high
 
     // Dark rounded tile behind the logo, matching the app's dark UI background
-    // (#1E1E1E). The logo PNG is a white mark on transparent, so it composites
+    // (#1E1E1E). The logo is a white mark on transparent, so it composites
     // cleanly on top. 22.37% corner radius approximates the macOS icon squircle.
     let bounds = NSRect(x: 0, y: 0, width: size, height: size)
     let radius = size * 0.2237
     NSColor(srgbRed: 30 / 255.0, green: 30 / 255.0, blue: 30 / 255.0, alpha: 1).setFill()
     NSBezierPath(roundedRect: bounds, xRadius: radius, yRadius: radius).fill()
 
-    // .sourceOver (not .copy) so the logo blends onto the tile instead of
-    // overwriting it — including the transparent areas.
+    // Fit the mark inside a padded square, keeping its aspect ratio and centring
+    // it — the logo canvas isn't square, so drawing it edge-to-edge would stretch
+    // it. .sourceOver (not .copy) blends it onto the tile, transparency included.
+    let inset = size * 0.18
+    let available = size - inset * 2
+    let aspect = sourceImage.size.width / max(sourceImage.size.height, 1)
+    let logoWidth = aspect >= 1 ? available : available * aspect
+    let logoHeight = aspect >= 1 ? available / aspect : available
+    let logoRect = NSRect(
+        x: (size - logoWidth) / 2,
+        y: (size - logoHeight) / 2,
+        width: logoWidth,
+        height: logoHeight
+    )
     sourceImage.draw(
-        in: bounds,
+        in: logoRect,
         from: .zero,
         operation: .sourceOver,
         fraction: 1.0
@@ -83,3 +97,8 @@ guard task.terminationStatus == 0 else {
 
 try? fm.removeItem(atPath: iconset)
 print("Wrote \(icnsPath)")
+
+// A standalone 512px preview for docs, where the raw white mark would vanish.
+let previewPath = "Resources/AppIcon.png"
+try render(px: 512).write(to: URL(fileURLWithPath: previewPath))
+print("Wrote \(previewPath)")

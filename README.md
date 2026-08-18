@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Resources/Logo.png" width="128" height="128" alt="Hover logo">
+  <img src="Resources/AppIcon.png" width="128" height="128" alt="Hover logo">
 </p>
 
 <h1 align="center">Hover</h1>

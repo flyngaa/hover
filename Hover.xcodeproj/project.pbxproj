@@ -12,8 +12,7 @@
 		AA0000000000000000000112 /* HoverCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000F04 /* HoverCore */; };
 		AA0000000000000000000113 /* HoverPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000F05 /* HoverPlatform */; };
 		AA0000000000000000000101 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000201 /* AppIcon.icns */; };
-		AA0000000000000000000102 /* Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000202 /* Logo.png */; };
-		AA0000000000000000000103 /* Moth.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000203 /* Moth.svg */; };
+		AA0000000000000000000105 /* hover.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000205 /* hover.svg */; };
 		AA0000000000000000000104 /* Obsidian.svg in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000204 /* Obsidian.svg */; };
 		AA0000000000000000000106 /* hover in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000206 /* hover */; };
 		AA0000000000000000000107 /* ThirdPartyLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000207 /* ThirdPartyLicenses.txt */; };
@@ -31,8 +30,7 @@
 
 /* Begin PBXFileReference section */
 		AA0000000000000000000201 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Resources/AppIcon.icns; sourceTree = "<group>"; };
-		AA0000000000000000000202 /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Resources/Logo.png; sourceTree = "<group>"; };
-		AA0000000000000000000203 /* Moth.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Moth.svg; sourceTree = "<group>"; };
+		AA0000000000000000000205 /* hover.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/hover.svg; sourceTree = "<group>"; };
 		AA0000000000000000000204 /* Obsidian.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = Resources/Obsidian.svg; sourceTree = "<group>"; };
 		AA0000000000000000000206 /* hover */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Scripts/hover; sourceTree = "<group>"; };
 		AA0000000000000000000207 /* ThirdPartyLicenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ThirdPartyLicenses.txt; sourceTree = "<group>"; };
@@ -89,8 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000000201 /* AppIcon.icns */,
-				AA0000000000000000000202 /* Logo.png */,
-				AA0000000000000000000203 /* Moth.svg */,
+				AA0000000000000000000205 /* hover.svg */,
 				AA0000000000000000000204 /* Obsidian.svg */,
 				AA0000000000000000000206 /* hover */,
 				AA0000000000000000000207 /* ThirdPartyLicenses.txt */,
@@ -200,8 +197,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000000000000000000101 /* AppIcon.icns in Resources */,
-				AA0000000000000000000102 /* Logo.png in Resources */,
-				AA0000000000000000000103 /* Moth.svg in Resources */,
+				AA0000000000000000000105 /* hover.svg in Resources */,
 				AA0000000000000000000104 /* Obsidian.svg in Resources */,
 				AA0000000000000000000106 /* hover in Resources */,
 				AA0000000000000000000107 /* ThirdPartyLicenses.txt in Resources */,

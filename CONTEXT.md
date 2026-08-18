@@ -69,7 +69,7 @@ The thing that persists user preferences (input source, output folder). A seam: 
 _Avoid_: config, preferences manager, defaults.
 
 **Menu Bar Moth**:
-The moth Hover shows in the macOS menu bar for as long as it's running — white on the dark menu bar when idle, red while a recording is in progress. Clicking it brings the window back to the front. It needs roughly 40 points of free menu bar space; if there is none, macOS hides it rather than shrinking it.
+The moth Hover shows in the macOS menu bar for as long as it's running — its usual black/white when idle, a soft blue while a recording is in progress. Clicking it opens a control dropdown (a state header plus start/stop and, in the GUI, show window). One moth stands for every Hover process, GUI or headless. It needs roughly 40 points of free menu bar space; if there is none, macOS hides it rather than shrinking it.
 _Avoid_: tray icon (that's Windows), status icon, indicator.
 
 **Agent Mode** (headless / CLI):

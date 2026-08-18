@@ -71,7 +71,7 @@ struct EmptyDetailView: View {
 
     @ViewBuilder
     private var logo: some View {
-        if let url = Bundle.main.url(forResource: "Logo", withExtension: "png"),
+        if let url = Bundle.main.url(forResource: "hover", withExtension: "svg"),
             let image = NSImage(contentsOf: url)
         {
             Image(nsImage: image)

@@ -44,7 +44,7 @@ if [[ -n "$EXPECTED_VERSION" ]]; then
 fi
 
 [[ -x "$EXECUTABLE" ]] || die "main executable is missing or not executable"
-for resource in AppIcon.icns Logo.png Moth.svg Obsidian.svg hover ThirdPartyLicenses.txt; do
+for resource in AppIcon.icns hover.svg Obsidian.svg hover ThirdPartyLicenses.txt; do
     [[ -f "$RESOURCES/$resource" ]] || die "required resource is missing: $resource"
 done
 [[ -x "$RESOURCES/hover" ]] || die "Agent Mode wrapper is not executable"
