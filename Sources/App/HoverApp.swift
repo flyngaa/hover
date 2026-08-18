@@ -30,8 +30,17 @@ struct HoverApp: App {
                     // menu bar never sprouts two.
                     ownsMoth = !HoverCLI.anotherHoverInstanceIsRunning()
                     if ownsMoth {
-                        statusItemController.show { command in
-                            if command == .showWindow { showWindow() }
+                        statusItemController.show(
+                            supporting: [.startRecording, .stopRecording, .showWindow]
+                        ) { command in
+                            switch command {
+                            case .showWindow:
+                                showWindow()
+                            case .startRecording:
+                                Task { @MainActor in await appModel.startRecording() }
+                            case .stopRecording:
+                                Task { @MainActor in await appModel.stopRecording() }
+                            }
                         }
                     }
                     // Re-render when a peer process (a headless run) changes state

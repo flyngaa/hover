@@ -18,8 +18,18 @@ final class StatusItemController: NSObject {
         srgbRed: 0.42, green: 0.66, blue: 0.96, alpha: 1
     )
 
-    enum Command: Equatable, Sendable {
+    enum Command: Equatable, Sendable, Hashable {
+        case startRecording
+        case stopRecording
         case showWindow
+    }
+
+    /// One row of the moth's dropdown. `command` is nil for the state header,
+    /// which is shown disabled.
+    struct MenuItemModel: Equatable {
+        let title: String
+        let isEnabled: Bool
+        let command: Command?
     }
 
     /// Height of the moth in the menu bar, in points. The artwork is roughly
@@ -29,6 +39,7 @@ final class StatusItemController: NSObject {
 
     private var statusItem: NSStatusItem?
     private var onCommand: ((Command) -> Void)?
+    private var supported: Set<Command> = []
     private(set) var snapshot = StatusItemSnapshot(activity: .idle, tooltip: "Hover")
 
     /// Renders a typed projection. The controller never observes or retains an
@@ -37,22 +48,29 @@ final class StatusItemController: NSObject {
         guard snapshot != self.snapshot else { return }
         self.snapshot = snapshot
         applyMothImage()
+        // The dropdown carries the live state ("Recording…"/"Transcribing…") and
+        // enables Start/Stop by it, so it has to be rebuilt on every change.
+        rebuildMenu()
     }
 
-    /// Puts the moth in the menu bar, optionally running `onClick` when it's
-    /// clicked. Calling this again is a no-op: the GUI runs it once per window,
-    /// and we only ever want one moth up there.
-    func show(onCommand: ((Command) -> Void)? = nil) {
+    /// Puts the moth in the menu bar with a dropdown control menu. `supporting`
+    /// declares which commands this host can carry out — the GUI can start, stop,
+    /// and show its window; a headless `hover record` can only stop. Calling this
+    /// again is a no-op: we only ever want one moth up there.
+    func show(
+        supporting commands: Set<Command> = [.showWindow],
+        onCommand: ((Command) -> Void)? = nil
+    ) {
         guard statusItem == nil else { return }
         self.onCommand = onCommand
+        self.supported = commands
 
         // Variable length: the moth is wider than the square slot a status item
         // gets by default, which would otherwise clip its wings.
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.target = self
-        item.button?.action = #selector(clicked)
         statusItem = item
         applyMothImage()
+        rebuildMenu()
     }
 
     private func applyMothImage() {
@@ -68,8 +86,81 @@ final class StatusItemController: NSObject {
         statusItem?.button?.toolTip = snapshot.tooltip
     }
 
-    @objc private func clicked() {
-        onCommand?(.showWindow)
+    // MARK: - Dropdown
+
+    /// The rows the dropdown should show for `activity`, given what the host
+    /// `supports`. Pure so the layout and enablement can be tested without a
+    /// status bar.
+    static func menuModel(
+        activity: StatusItemSnapshot.Activity,
+        supports: Set<Command>
+    ) -> [MenuItemModel] {
+        var items = [MenuItemModel(title: header(for: activity), isEnabled: false, command: nil)]
+        if supports.contains(.startRecording) {
+            items.append(
+                MenuItemModel(
+                    title: "Start Recording",
+                    isEnabled: activity == .idle,
+                    command: .startRecording
+                ))
+        }
+        if supports.contains(.stopRecording) {
+            items.append(
+                MenuItemModel(
+                    title: "Stop Recording",
+                    isEnabled: activity == .recording,
+                    command: .stopRecording
+                ))
+        }
+        if supports.contains(.showWindow) {
+            items.append(
+                MenuItemModel(title: "Show Hover", isEnabled: true, command: .showWindow))
+        }
+        return items
+    }
+
+    private static func header(for activity: StatusItemSnapshot.Activity) -> String {
+        switch activity {
+        case .idle: return "Hover — Ready"
+        case .recording: return "Recording…"
+        case .processing: return "Transcribing…"
+        }
+    }
+
+    private func rebuildMenu() {
+        guard let statusItem, !supported.isEmpty else {
+            statusItem?.menu = nil
+            return
+        }
+        let menu = NSMenu()
+        // Our models already decide what's enabled; let them stand rather than
+        // AppKit's target/action auto-validation.
+        menu.autoenablesItems = false
+
+        for (index, model) in Self.menuModel(activity: snapshot.activity, supports: supported)
+            .enumerated()
+        {
+            // A rule under the state header, and before "Show Hover", groups the
+            // controls without labelling every divider.
+            if index == 1 || model.command == .showWindow {
+                menu.addItem(.separator())
+            }
+            let item = NSMenuItem(
+                title: model.title,
+                action: model.command == nil ? nil : #selector(menuItemClicked(_:)),
+                keyEquivalent: ""
+            )
+            item.isEnabled = model.isEnabled
+            item.target = self
+            item.representedObject = model.command
+            menu.addItem(item)
+        }
+        statusItem.menu = menu
+    }
+
+    @objc private func menuItemClicked(_ sender: NSMenuItem) {
+        guard let command = sender.representedObject as? Command else { return }
+        onCommand?(command)
     }
 }
 

@@ -383,7 +383,11 @@ enum HoverCLI {
             // run) is already showing a moth, so the menu bar never sprouts two.
             let statusItemController = StatusItemController()
             if !HoverCLI.anotherHoverInstanceIsRunning() {
-                statusItemController.show()
+                // A headless run is already recording, so its only control is
+                // Stop — the same as Ctrl-C, but from the menu bar.
+                statusItemController.show(supporting: [.stopRecording]) { [weak self] command in
+                    if command == .stopRecording { self?.noteStopRequested() }
+                }
             }
 
             printStatus("Recording \(durationLabel)…")
