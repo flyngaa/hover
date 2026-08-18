@@ -7,6 +7,8 @@ import SwiftUI
 struct HoverApp: App {
     @State private var appModel: AppModel
     @State private var statusItemController = StatusItemController()
+    @State private var presence = RecordingPresence()
+    @State private var ownsMoth = false
 
     init() {
         _appModel = State(initialValue: AppDependencies.live().makeAppModel())
@@ -26,11 +28,15 @@ struct HoverApp: App {
                     // Only park a moth when no other Hover (a headless `hover
                     // record`, or a second copy) is already showing one, so the
                     // menu bar never sprouts two.
-                    if !HoverCLI.anotherHoverInstanceIsRunning() {
+                    ownsMoth = !HoverCLI.anotherHoverInstanceIsRunning()
+                    if ownsMoth {
                         statusItemController.show { command in
                             if command == .showWindow { showWindow() }
                         }
                     }
+                    // Re-render when a peer process (a headless run) changes state
+                    // so this moth reflects any Hover recording, not just this one.
+                    presence.onChange = { Task { @MainActor in renderMothState() } }
                     trackStatusItemSnapshot()
                 }
         }
@@ -69,11 +75,20 @@ struct HoverApp: App {
     }
 
     private func trackStatusItemSnapshot() {
-        statusItemController.render(appModel.statusItemSnapshot)
+        renderMothState()
         withObservationTracking {
             _ = appModel.statusItemSnapshot
         } onChange: {
             Task { @MainActor in trackStatusItemSnapshot() }
         }
+    }
+
+    /// Announce this process's recording state to any peers, then — if this
+    /// process owns the moth — render the state combined across every running
+    /// Hover, so one moth speaks for the GUI and the headless CLI alike.
+    private func renderMothState() {
+        presence.announce(appModel.statusItemSnapshot.activity.presenceState)
+        guard ownsMoth else { return }
+        statusItemController.render(presence.combinedState.statusItemSnapshot)
     }
 }

@@ -328,6 +328,7 @@ enum HoverCLI {
         private let permissions: any RecordingPermissions
         private let recording: RecordingModel
         private let transcriptLibrary: TranscriptLibraryModel
+        private let presence = RecordingPresence()
         private var signalSources: [DispatchSourceSignal] = []
 
         private var stopRequested = false
@@ -391,11 +392,14 @@ enum HoverCLI {
             guard recording.isRecording else {
                 fail(recording.presentedFailureMessage ?? "Failed to start recording.")
             }
+            // Announce alongside every render so a GUI moth (which may own the
+            // menu bar instead of this run) reflects the recording too.
             statusItemController.render(
                 StatusItemSnapshot(
                     activity: .recording,
                     tooltip: "Hover — recording"
                 ))
+            presence.announce(.recording)
 
             await waitForStop()
 
@@ -405,8 +409,10 @@ enum HoverCLI {
                     activity: .processing,
                     tooltip: "Hover — processing"
                 ))
+            presence.announce(.processing)
             finalResult = await recording.stopRecording()
             statusItemController.render(StatusItemSnapshot(activity: .idle, tooltip: "Hover"))
+            presence.announce(.idle)
 
             if let failure = finalResult?.failure {
                 fail(failure.message)
