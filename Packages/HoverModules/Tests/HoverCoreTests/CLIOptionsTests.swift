@@ -33,6 +33,18 @@ import Testing
         #expect(CLIOptions.parse(["setup", "--status", "--json"]).command == .invalid)
     }
 
+    @Test func doctorCommandSelectsReadinessReport() {
+        #expect(CLIOptions.parse(["doctor"]).command == .doctor(json: false))
+        #expect(CLIOptions.parse(["doctor", "--json"]).command == .doctor(json: true))
+        #expect(CLIOptions.parse(["doctor"]).isCLI)
+    }
+
+    @Test func doctorRejectsEveryOtherFlagOrSubcommand() {
+        #expect(CLIOptions.parse(["doctor", "--status"]).command == .invalid)
+        #expect(CLIOptions.parse(["doctor", "status"]).command == .invalid)
+        #expect(CLIOptions.parse(["doctor", "--json", "--json"]).command == .invalid)
+    }
+
     @Test func duration() {
         #expect(CLIOptions.parse(["record", "--duration", "30"]).duration == 30)
         #expect(CLIOptions.parse(["-d", "15"]).duration == 15)

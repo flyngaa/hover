@@ -81,7 +81,7 @@ enum HoverCLI {
                 "Error: Unsupported setup option. Use `hover setup` or `hover setup --status`.\n"
             )
             return 1
-        case .gui, .record:
+        case .gui, .record, .doctor:
             return nil
         }
 
@@ -124,6 +124,177 @@ enum HoverCLI {
         modelSetup.isComplete ? nil : modelDataMissingMessage
     }
 
+    // MARK: - Doctor
+
+    /// Assemble the readiness report from already-gathered facts. Pure so the
+    /// mapping from raw state to statuses, fixes, and the overall exit code can
+    /// be unit-tested without a machine in any particular state. The platform
+    /// side (``Delegate/buildDoctorReport()``) reads the live values and calls
+    /// this; it must never trigger a permission prompt or a download.
+    static func doctorReport(
+        architecture: String,
+        architectureSupported: Bool,
+        osVersion: String,
+        osSupported: Bool,
+        hoverOnPath: String?,
+        modelPresent: Bool,
+        microphone: PermissionState,
+        systemAudio: PermissionState,
+        outputDirectory: String,
+        outputWritable: Bool
+    ) -> DoctorReport {
+        var checks: [DoctorReport.Check] = []
+
+        checks.append(
+            DoctorReport.Check(
+                id: "architecture",
+                name: "Architecture",
+                status: architectureSupported ? .ok : .fail,
+                detail: architectureSupported
+                    ? "\(architecture) (Apple Silicon)"
+                    : "\(architecture) is not supported",
+                fix: architectureSupported ? nil : "Hover requires an Apple Silicon Mac."
+            ))
+
+        checks.append(
+            DoctorReport.Check(
+                id: "macos",
+                name: "macOS",
+                status: osSupported ? .ok : .fail,
+                detail: osSupported ? osVersion : "\(osVersion) is older than 14.2",
+                fix: osSupported ? nil : "Update to macOS 14.2 Sonoma or later."
+            ))
+
+        if let path = hoverOnPath {
+            checks.append(
+                DoctorReport.Check(
+                    id: "cli",
+                    name: "CLI on PATH",
+                    status: .ok,
+                    detail: "hover resolves at \(path)"
+                ))
+        } else {
+            checks.append(
+                DoctorReport.Check(
+                    id: "cli",
+                    name: "CLI on PATH",
+                    status: .warn,
+                    detail: "hover is not on your PATH",
+                    fix:
+                        "Reinstall the Homebrew cask, or use Hover > Settings > Install CLI. "
+                        + "You can still run Hover by its full path."
+                ))
+        }
+
+        checks.append(
+            DoctorReport.Check(
+                id: "model",
+                name: "Model data",
+                status: modelPresent ? .ok : .fail,
+                detail: modelPresent
+                    ? "Whisper model is downloaded"
+                    : "Whisper model data is missing",
+                fix: modelPresent ? nil : "Run `hover setup` to download about 575 MB."
+            ))
+
+        checks.append(microphoneCheck(microphone))
+        checks.append(systemAudioCheck(systemAudio))
+
+        checks.append(
+            DoctorReport.Check(
+                id: "output",
+                name: "Output folder",
+                status: outputWritable ? .ok : .fail,
+                detail: outputWritable
+                    ? "\(outputDirectory) is writable"
+                    : "\(outputDirectory) can't be written to",
+                fix: outputWritable
+                    ? nil
+                    : "Open Hover once and pick a writable output folder, or pass "
+                        + "--output to a folder Hover can write to."
+            ))
+
+        return DoctorReport(checks: checks)
+    }
+
+    /// The microphone is Hover's baseline source, so a refusal fails the report;
+    /// "not requested" is only a warning because the first recording (or opening
+    /// the app) still prompts for it.
+    private static func microphoneCheck(_ state: PermissionState) -> DoctorReport.Check {
+        switch state {
+        case .granted:
+            return DoctorReport.Check(
+                id: "microphone", name: "Microphone", status: .ok, detail: "granted")
+        case .notRequested:
+            return DoctorReport.Check(
+                id: "microphone",
+                name: "Microphone",
+                status: .warn,
+                detail: "not requested yet",
+                fix: "Open Hover and start a recording once so macOS prompts for the microphone."
+            )
+        case .denied:
+            return DoctorReport.Check(
+                id: "microphone",
+                name: "Microphone",
+                status: .fail,
+                detail: "denied",
+                fix: "Enable Hover under System Settings > Privacy & Security > Microphone."
+            )
+        }
+    }
+
+    /// System audio only ever warns: a `both` recording falls back to mic-only
+    /// when it is missing, so its absence degrades a recording rather than
+    /// blocking one.
+    private static func systemAudioCheck(_ state: PermissionState) -> DoctorReport.Check {
+        switch state {
+        case .granted:
+            return DoctorReport.Check(
+                id: "systemAudio", name: "System audio", status: .ok, detail: "granted")
+        case .notRequested:
+            return DoctorReport.Check(
+                id: "systemAudio",
+                name: "System audio",
+                status: .warn,
+                detail: "not requested yet",
+                fix:
+                    "Open Hover and record System Audio once so macOS prompts. "
+                    + "Mic-only recording works without it."
+            )
+        case .denied:
+            return DoctorReport.Check(
+                id: "systemAudio",
+                name: "System audio",
+                status: .warn,
+                detail: "denied",
+                fix:
+                    "Enable Hover under System Settings > Privacy & Security > "
+                    + "Screen & System Audio Recording. Mic-only recording works without it."
+            )
+        }
+    }
+
+    // MARK: - Output destination
+
+    /// `nil` when a run may save where it is pointed; otherwise the stderr
+    /// message to print before exiting. Checked on every run so a headless run
+    /// fails before recording rather than after, when the audio only exists in
+    /// memory. `authorizationRequest` is the folder the GUI would raise a picker
+    /// for; a headless run has no picker, so it is a hard stop.
+    static func outputBlockReason(
+        authorizationRequest: URL?,
+        failureMessage: String?
+    ) -> String? {
+        if let failureMessage { return failureMessage }
+        if let authorizationRequest {
+            return
+                "Can't write to \(authorizationRequest.path). Pass --output to a folder Hover "
+                + "can write to, or open Hover once and pick an accessible output folder."
+        }
+        return nil
+    }
+
     /// Entry point from `main`. Never returns (drives the AppKit run loop, then
     /// exits from inside the delegate).
     @MainActor
@@ -154,6 +325,7 @@ enum HoverCLI {
     private final class Delegate: NSObject, NSApplicationDelegate {
         private let options: CLIOptions
         private let modelSetup: any ModelSetup
+        private let permissions: any RecordingPermissions
         private let recording: RecordingModel
         private let transcriptLibrary: TranscriptLibraryModel
         private var signalSources: [DispatchSourceSignal] = []
@@ -167,6 +339,7 @@ enum HoverCLI {
             self.options = options
             let dependencies = AppDependencies.live()
             modelSetup = dependencies.modelSetup
+            permissions = dependencies.permissions
             recording = dependencies.makeRecordingModel()
             transcriptLibrary = dependencies.makeTranscriptLibraryModel()
             (stopEvents, stopContinuation) = AsyncStream.makeStream()
@@ -182,6 +355,11 @@ enum HoverCLI {
                 standardOutput: { print($0, terminator: "") },
                 standardError: { text in HoverCLI.writeToStandardError(text) }
             )
+
+            if case .doctor(let json) = options.command {
+                runDoctor(json: json)  // reports readiness and exits; never records
+            }
+
             if let exitCode = await HoverCLI.executeSetup(
                 options,
                 modelSetup: modelSetup,
@@ -230,8 +408,7 @@ enum HoverCLI {
                 fail(failure.message)
             }
 
-            emitResult()
-            exit(0)
+            exit(emitResult())
         }
 
         /// A headless run has nobody to answer a permission dialog and no window
@@ -248,6 +425,54 @@ enum HoverCLI {
             await recording.recordWithReducedInput()
         }
 
+        // MARK: Doctor
+
+        /// Print the readiness report and exit. Reads state only — never prompts
+        /// for a permission and never starts a download.
+        @MainActor
+        private func runDoctor(json: Bool) -> Never {
+            let report = buildDoctorReport()
+            if json {
+                do {
+                    print(try report.jsonReport())
+                } catch {
+                    fail("Could not encode doctor JSON output.")
+                }
+            } else {
+                print(report.textReport)
+            }
+            exit(report.exitCode)
+        }
+
+        @MainActor
+        private func buildDoctorReport() -> DoctorReport {
+            #if arch(arm64)
+                let architecture = "arm64"
+                let architectureSupported = true
+            #else
+                let architecture = "x86_64"
+                let architectureSupported = false
+            #endif
+
+            let version = ProcessInfo.processInfo.operatingSystemVersion
+            let osVersion =
+                "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+            let osSupported = (version.majorVersion, version.minorVersion) >= (14, 2)
+
+            return HoverCLI.doctorReport(
+                architecture: architecture,
+                architectureSupported: architectureSupported,
+                osVersion: osVersion,
+                osSupported: osSupported,
+                hoverOnPath: HoverCLI.hoverExecutableOnPath(),
+                modelPresent: modelSetup.isComplete,
+                microphone: permissions.microphone,
+                systemAudio: permissions.screenRecording,
+                outputDirectory: transcriptLibrary.outputDirectory.path,
+                outputWritable: transcriptLibrary.outputDirectoryAuthorizationRequest == nil
+            )
+        }
+
         // MARK: Setup
 
         @MainActor
@@ -255,7 +480,16 @@ enum HoverCLI {
             if let source = options.inputSource { recording.inputSource = source }
             if let output = options.output {
                 transcriptLibrary.setOutputDirectory(resolveOutput(output))
-                if let message = transcriptLibrary.presentedFailureMessage { fail(message) }
+            }
+            // Checked whether or not --output was passed: the default folder
+            // (~/Documents/Transcripts) is itself protected, so a headless run
+            // must learn it can't save now rather than after a recording, when
+            // the audio only exists in memory.
+            if let reason = HoverCLI.outputBlockReason(
+                authorizationRequest: transcriptLibrary.outputDirectoryAuthorizationRequest,
+                failureMessage: transcriptLibrary.presentedFailureMessage
+            ) {
+                fail(reason)
             }
         }
 
@@ -344,8 +578,12 @@ enum HoverCLI {
 
         // MARK: Output
 
+        /// Returns the process exit code. Non-zero when a transcript was produced
+        /// but never reached disk: the text still goes to stdout so it isn't
+        /// lost, but the caller must see that the save failed. An empty
+        /// transcript (no speech) is not a failure — there was nothing to save.
         @MainActor
-        private func emitResult() {
+        private func emitResult() -> Int32 {
             var text = ""
             var savedPath: String?
 
@@ -354,9 +592,11 @@ enum HoverCLI {
                 savedPath = result.path?.path
             }
 
+            let saveFailed = !text.isEmpty && savedPath == nil
+
             if options.json {
                 emitJSON(text: text, savedPath: savedPath)
-                return
+                return saveFailed ? 1 : 0
             }
 
             if text.isEmpty {
@@ -365,11 +605,15 @@ enum HoverCLI {
                 print(text)  // the transcript itself goes to stdout for the agent
             }
             if let savedPath { printStatus("Saved: \(savedPath)") }
+            if saveFailed {
+                printStatus("Warning: the transcript above could not be saved to a file.")
+            }
             // e.g. system audio couldn't start. Without this the run looks clean
             // but quietly skipped something.
             if let warning = recording.presentedFailureMessage {
                 printStatus(warning.replacingOccurrences(of: "\n", with: " "))
             }
+            return saveFailed ? 1 : 0
         }
 
         private func emitJSON(text: String, savedPath: String?) {
@@ -408,6 +652,24 @@ enum HoverCLI {
             exit(1)
         }
 
+    }
+
+    /// The absolute path of a `hover` executable resolvable on the caller's
+    /// PATH, or `nil` when none is. Read-only: it confirms a future
+    /// `hover record` in a fresh shell will resolve, without running anything.
+    static func hoverExecutableOnPath(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default
+    ) -> String? {
+        guard let path = environment["PATH"] else { return nil }
+        for directory in path.split(separator: ":", omittingEmptySubsequences: true) {
+            let candidate = URL(fileURLWithPath: String(directory))
+                .appendingPathComponent("hover")
+            if fileManager.isExecutableFile(atPath: candidate.path) {
+                return candidate.path
+            }
+        }
+        return nil
     }
 
     /// Uses `write(2)` rather than `FileHandle`, which raises an exception when

@@ -4,6 +4,7 @@ public enum CLICommand: Equatable, Sendable {
     case gui
     case record
     case setup(statusOnly: Bool)
+    case doctor(json: Bool)
     case invalid
 }
 
@@ -44,6 +45,18 @@ public struct CLIOptions: Equatable, Sendable {
                 options.command = .setup(statusOnly: false)
             case ["--status"]:
                 options.command = .setup(statusOnly: true)
+            default:
+                options.command = .invalid
+            }
+            return options
+        }
+
+        if args.first == "doctor" {
+            switch Array(args.dropFirst()) {
+            case []:
+                options.command = .doctor(json: false)
+            case ["--json"]:
+                options.command = .doctor(json: true)
             default:
                 options.command = .invalid
             }
@@ -110,6 +123,7 @@ public struct CLIOptions: Equatable, Sendable {
         USAGE:
           hover record [options]
           hover setup [--status]
+          hover doctor [--json]
 
         OPTIONS:
           -d, --duration <sec>   Record for this many seconds, then stop.
@@ -129,5 +143,7 @@ public struct CLIOptions: Equatable, Sendable {
           hover record            # records until Ctrl-C, then transcribes
           hover setup             # downloads missing model data
           hover setup --status    # checks Model Setup without downloading
+          hover doctor            # report whether Hover is ready to record
+          hover doctor --json     # the same report as JSON, for scripts and agents
         """
 }

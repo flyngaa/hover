@@ -75,6 +75,18 @@ hover setup --status
 hover --help
 ```
 
+Check whether Hover is ready to record — architecture, macOS version, CLI on
+PATH, model data, microphone, system audio, and the output folder — without
+prompting or downloading anything:
+
+```bash
+hover doctor          # human-readable readiness report
+hover doctor --json   # the same report as JSON, for scripts and agents
+```
+
+`hover doctor` exits non-zero if anything is missing, so scripts and agents can
+gate on it before recording.
+
 ## Compatibility
 
 | Requirement | Support |
@@ -192,3 +204,4 @@ flowchart LR
 | System audio is unavailable | Start a System Audio recording once. If access was refused, enable Hover under **Privacy & Security → Screen & System Audio Recording → System Audio Recording Only**. |
 | Model setup failed | Check the network connection and retry, or run `hover setup`. |
 | The `hover` command is missing | Use **Hover → Settings → Install CLI**, or reinstall the Homebrew cask. |
+| Not sure whether Hover is ready | Run `hover doctor` for a readiness report and the fix for anything missing. |
