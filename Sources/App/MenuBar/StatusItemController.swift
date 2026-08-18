@@ -2,7 +2,7 @@ import AppKit
 import HoverCore
 
 /// The moth Hover parks in the macOS menu bar for as long as it's running. It
-/// wears the usual menu bar black/white when idle and turns red while a
+/// wears the usual menu bar black/white when idle and turns a soft blue while a
 /// recording is in progress, so you can tell at a glance whether Hover is
 /// listening — including in Agent Mode, where there is no window or dock icon
 /// to look at.
@@ -10,6 +10,13 @@ import HoverCore
 /// An `NSObject` because the status item reaches it through target/action.
 @MainActor
 final class StatusItemController: NSObject {
+
+    /// The colour the moth wears while recording — a pastel blue that reads as
+    /// "live" without the alarm of red, and stays legible on light and dark
+    /// menu bars alike.
+    private static let recordingTint = NSColor(
+        srgbRed: 0.42, green: 0.66, blue: 0.96, alpha: 1
+    )
 
     enum Command: Equatable, Sendable {
         case showWindow
@@ -51,11 +58,11 @@ final class StatusItemController: NSObject {
     private func applyMothImage() {
         // A template image lets macOS colour the moth itself — black on a light
         // menu bar, white on a dark one, inverted while the item is pressed.
-        // The recording moth opts out of that so it can stay red.
+        // The recording moth opts out of that so it can wear its own blue.
         let isRecording = snapshot.activity == .recording
         statusItem?.button?.image = MothArtwork.image(
             height: Self.height,
-            tint: isRecording ? .systemRed : nil
+            tint: isRecording ? Self.recordingTint : nil
         )
         statusItem?.button?.image?.isTemplate = !isRecording
         statusItem?.button?.toolTip = snapshot.tooltip

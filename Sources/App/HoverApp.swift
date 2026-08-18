@@ -23,8 +23,13 @@ struct HoverApp: App {
                 .frame(minWidth: 600, minHeight: 400)
                 .onAppear {
                     setupHotKeys()
-                    statusItemController.show { command in
-                        if command == .showWindow { showWindow() }
+                    // Only park a moth when no other Hover (a headless `hover
+                    // record`, or a second copy) is already showing one, so the
+                    // menu bar never sprouts two.
+                    if !HoverCLI.anotherHoverInstanceIsRunning() {
+                        statusItemController.show { command in
+                            if command == .showWindow { showWindow() }
+                        }
                     }
                     trackStatusItemSnapshot()
                 }
