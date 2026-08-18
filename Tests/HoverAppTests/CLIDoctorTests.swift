@@ -106,6 +106,45 @@ import Testing
         #expect(reason?.contains("/protected") == true)
     }
 
+    @Test func detectsAnotherInstanceOnlyWhenBundleIDsMatchAndItIsNotSelf() {
+        let bundleID = "com.hover.desktop"
+
+        // Only this process is running under the bundle id -> no other instance.
+        #expect(
+            HoverCLI.hasOtherInstance(
+                ofBundleID: bundleID,
+                excludingProcessID: 100,
+                among: [(processID: 100, bundleID: bundleID)]
+            ) == false)
+
+        // A different process with the same bundle id (e.g. the GUI app).
+        #expect(
+            HoverCLI.hasOtherInstance(
+                ofBundleID: bundleID,
+                excludingProcessID: 100,
+                among: [
+                    (processID: 100, bundleID: bundleID),
+                    (processID: 200, bundleID: bundleID),
+                ]
+            ))
+
+        // Other processes, but none is Hover.
+        #expect(
+            HoverCLI.hasOtherInstance(
+                ofBundleID: bundleID,
+                excludingProcessID: 100,
+                among: [(processID: 200, bundleID: "com.apple.Finder")]
+            ) == false)
+
+        // Unknown own bundle id can't match anything.
+        #expect(
+            HoverCLI.hasOtherInstance(
+                ofBundleID: nil,
+                excludingProcessID: 100,
+                among: [(processID: 200, bundleID: bundleID)]
+            ) == false)
+    }
+
     @Test func hoverExecutableOnPathFindsAnExecutableAndIgnoresMissingPath() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("hover-path-\(UUID().uuidString)")

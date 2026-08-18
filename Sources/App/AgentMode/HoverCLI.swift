@@ -378,8 +378,12 @@ enum HoverCLI {
 
             // The only visible sign of a headless run: without it there's nothing
             // on screen to say the Mac is listening. It lives as long as the run.
+            // Skip it when another Hover (the GUI app, a dev build, or a second
+            // run) is already showing a moth, so the menu bar never sprouts two.
             let statusItemController = StatusItemController()
-            statusItemController.show()
+            if !HoverCLI.anotherHoverInstanceIsRunning() {
+                statusItemController.show()
+            }
 
             printStatus("Recording \(durationLabel)…")
             await recording.startRecording(outputDirectory: transcriptLibrary.outputDirectory)
@@ -652,6 +656,37 @@ enum HoverCLI {
             exit(1)
         }
 
+    }
+
+    // MARK: - One moth at a time
+
+    /// Pure decision: is another Hover instance present among `running` (matched
+    /// by bundle id), excluding this process? Factored out from
+    /// ``anotherHoverInstanceIsRunning()`` so it can be tested without the window
+    /// server.
+    static func hasOtherInstance(
+        ofBundleID myBundleID: String?,
+        excludingProcessID myProcessID: Int32,
+        among running: [(processID: Int32, bundleID: String?)]
+    ) -> Bool {
+        guard let myBundleID else { return false }
+        return running.contains {
+            $0.processID != myProcessID && $0.bundleID == myBundleID
+        }
+    }
+
+    /// `true` when another Hover process (the GUI app, a dev build, or a second
+    /// run) is already registered with the window server, so a headless run can
+    /// avoid parking a second menu-bar moth beside it. Excludes this process.
+    @MainActor
+    static func anotherHoverInstanceIsRunning() -> Bool {
+        hasOtherInstance(
+            ofBundleID: Bundle.main.bundleIdentifier,
+            excludingProcessID: ProcessInfo.processInfo.processIdentifier,
+            among: NSWorkspace.shared.runningApplications.map {
+                ($0.processIdentifier, $0.bundleIdentifier)
+            }
+        )
     }
 
     /// The absolute path of a `hover` executable resolvable on the caller's
