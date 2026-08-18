@@ -6,7 +6,16 @@ struct ContentView: View {
     @Environment(RecordingModel.self) private var recording
     @Environment(TranscriptLibraryModel.self) private var library
     @Environment(ModelSetupController.self) private var modelSetup
-    @State private var offerInstallCLIAfterSetup = false
+    @State private var onboardingStep: OnboardingStep?
+    @State private var freshSetupCLIOnboardingPending = false
+
+    /// First-run steps shown once the model is ready, in order: pick where
+    /// transcripts are saved, then (only after a fresh setup) offer the CLI.
+    private enum OnboardingStep: Identifiable {
+        case chooseOutput
+        case installCLI
+        var id: Self { self }
+    }
 
     var body: some View {
         Group {
@@ -18,13 +27,23 @@ struct ContentView: View {
         }
         .tint(BrandColors.orange)
         .background(WindowTitleHidingView())
+        .onAppear { presentNextOnboarding() }
         .onChange(of: modelSetup.status) { previous, current in
             if previous != .notNeeded, current == .notNeeded {
-                offerInstallCLIAfterSetup = true
+                freshSetupCLIOnboardingPending = true
+                presentNextOnboarding()
             }
         }
-        .sheet(isPresented: $offerInstallCLIAfterSetup) {
-            InstallCLIView(isOnboarding: true)
+        .sheet(
+            item: $onboardingStep,
+            onDismiss: { DispatchQueue.main.async { presentNextOnboarding() } }
+        ) { step in
+            switch step {
+            case .chooseOutput:
+                OutputDestinationOnboardingView()
+            case .installCLI:
+                InstallCLIView(isOnboarding: true)
+            }
         }
         .fileImporter(
             isPresented: .init(
@@ -54,6 +73,20 @@ struct ContentView: View {
             Button("OK") { library.presentedFailureMessage = nil }
         } message: {
             Text(library.presentedFailureMessage ?? "")
+        }
+    }
+
+    /// Show the next first-run step, if any. Gated on the model being ready so a
+    /// prompt never covers the setup screen, and on nothing already being up so
+    /// the steps present one at a time. Called on appear, after a fresh setup,
+    /// and after each step is dismissed.
+    private func presentNextOnboarding() {
+        guard modelSetup.status == .notNeeded, onboardingStep == nil else { return }
+        if !library.hasChosenOutputDestination {
+            onboardingStep = .chooseOutput
+        } else if freshSetupCLIOnboardingPending {
+            freshSetupCLIOnboardingPending = false
+            onboardingStep = .installCLI
         }
     }
 

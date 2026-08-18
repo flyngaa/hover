@@ -81,6 +81,13 @@ final class TranscriptLibraryModel {
         return FileManager.default.fileExists(atPath: url.path) ? url : defaultOutputDirectory
     }
 
+    /// Whether the user has ever explicitly picked an Output Destination. `false`
+    /// on a fresh install, when saves fall back to the default folder — the
+    /// signal the first-run prompt uses to ask once instead of saving silently.
+    var hasChosenOutputDestination: Bool {
+        settings.outputDirectoryPath != nil
+    }
+
     static func shortPath(_ url: URL) -> String {
         url.path.replacingOccurrences(
             of: FileManager.default.homeDirectoryForCurrentUser.path,
