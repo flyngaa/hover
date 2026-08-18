@@ -87,9 +87,21 @@ answered by a person, and there is no command that grants them.
 
 Critical: trigger the prompt by opening the app, not by running `hover record`.
 
+Open the installed bundle by its full path, not by name:
+
 ```bash
-open -a Hover
+open /Applications/Hover.app
 ```
+
+Do not use `open -a Hover`. That resolves the name "Hover" through
+LaunchServices, and if any other Hover bundle is registered on the machine (for
+example a developer's Debug build) it can open the wrong one. macOS ties a
+permission grant to an app's code signature, so the released, notarized app in
+`/Applications` and any dev build are treated as different apps even though they
+share a bundle id — granting on the wrong bundle leaves `hover doctor` still
+reporting "not requested." If `hover doctor` keeps saying not-requested right
+after a grant, suspect a second Hover: quit any stray copies (`osascript -e 'quit
+app "Hover"'` or Activity Monitor) and open `/Applications/Hover.app` again.
 
 Opening the app makes the permission request come from Hover itself, so macOS
 attributes the grant to Hover (running `hover record` from a terminal can attribute
